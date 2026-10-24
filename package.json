@@ -16,7 +16,8 @@
     "dev:dashboard": "npm run dev --workspace=@shadow-llm/dashboard",
     "dev:worker": "npm run dev --workspace=@shadow-llm/worker",
     "seed": "npm run seed --workspace=@shadow-llm/shared",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm test --workspace=@shadow-llm/shared && npm test --workspace=@shadow-llm/server && npm test --workspace=@shadow-llm/worker",
+    "test:load": "tsx scripts/load-test.ts"
   },
   "devDependencies": {
     "tsx": "^4.19.2",
