@@ -2,6 +2,7 @@ import {
   calculateCost,
   ChatCompletionRequest,
   ChatCompletionResponse,
+  evaluateDrift,
   getDatabase,
   getStreamQueue,
   MockLLMResponder,
@@ -27,13 +28,13 @@ export interface ShadowWorkerOptions {
 
 export class ShadowWorker {
   private stopFn: (() => void) | null = null;
-  private evalDrift?: ShadowWorkerOptions['evaluateDrift'];
+  private evalDrift: NonNullable<ShadowWorkerOptions['evaluateDrift']>;
 
   constructor(options: ShadowWorkerOptions = {}) {
-    this.evalDrift = options.evaluateDrift;
+    this.evalDrift = options.evaluateDrift || evaluateDrift;
   }
 
-  setDriftEvaluator(evaluator: ShadowWorkerOptions['evaluateDrift']) {
+  setDriftEvaluator(evaluator: NonNullable<ShadowWorkerOptions['evaluateDrift']>) {
     this.evalDrift = evaluator;
   }
 
@@ -137,47 +138,24 @@ export class ShadowWorker {
     const shadowCostUsd = calculateCost(shadowModel, promptTokens, completionTokens);
 
     // 2. Side-Effect Virtualization
-    let toolIntentMatched = true;
     if (shadowToolCalls && shadowToolCalls.length > 0) {
       for (const stc of shadowToolCalls) {
         const vResult = virtualizeToolCall(traceId, stc, primaryToolCalls);
 
         if (vResult.mutationRecord) {
           await db.insertMutation(vResult.mutationRecord);
-          if (!vResult.mutationRecord.args_match) {
-            toolIntentMatched = false;
-          }
         }
       }
-    } else if (primaryToolCalls && primaryToolCalls.length > 0) {
-      // Primary called tools, but shadow did not call tools!
-      toolIntentMatched = false;
     }
 
     // 3. Evaluation & Semantic Drift Detection
-    let semanticSimilarity: number | null = 1.0;
-    let hasDriftWarning = false;
-    let driftReason: string | null = null;
-
-    if (this.evalDrift) {
-      const evalRes = await this.evalDrift(
-        primaryResponseText,
-        shadowResponseText,
-        primaryToolCalls,
-        shadowToolCalls,
-        driftThreshold
-      );
-      semanticSimilarity = evalRes.semanticSimilarity;
-      toolIntentMatched = evalRes.toolIntentMatched;
-      hasDriftWarning = evalRes.hasDriftWarning;
-      driftReason = evalRes.driftReason;
-    } else {
-      // Fallback simple similarity if eval engine not yet mounted
-      if (!toolIntentMatched) {
-        hasDriftWarning = true;
-        driftReason = 'Tool call intent or parameter mismatch';
-      }
-    }
+    const evalRes = await this.evalDrift(
+      primaryResponseText,
+      shadowResponseText,
+      primaryToolCalls,
+      shadowToolCalls,
+      driftThreshold
+    );
 
     // 4. Update Execution Trace with Shadow & Evaluation results
     await db.updateTrace(traceId, {
@@ -186,10 +164,10 @@ export class ShadowWorker {
       shadow_tool_calls: shadowToolCalls || null,
       shadow_latency_ms: shadowLatencyMs,
       shadow_cost_usd: shadowCostUsd,
-      semantic_similarity: semanticSimilarity,
-      tool_intent_matched: toolIntentMatched,
-      has_drift_warning: hasDriftWarning,
-      drift_reason: driftReason,
+      semantic_similarity: evalRes.semanticSimilarity,
+      tool_intent_matched: evalRes.toolIntentMatched,
+      has_drift_warning: evalRes.hasDriftWarning,
+      drift_reason: evalRes.driftReason,
     });
   }
 }
