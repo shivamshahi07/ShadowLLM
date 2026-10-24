@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: shadow-llm-proxy
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: HOST
+        value: 0.0.0.0
+      - key: RUN_EMBEDDED_WORKER
+        value: true
+      - key: DATABASE_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      - key: PRIMARY_PROVIDER
+        value: mock
+      - key: PRIMARY_API_KEY
+        sync: false
+      - key: PRIMARY_BASE_URL
+        value: https://api.openai.com/v1
+      - key: PRIMARY_MODEL
+        value: gpt-4o
+      - key: SHADOW_PROVIDER
+        value: mock
+      - key: SHADOW_API_KEY
+        sync: false
+      - key: SHADOW_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: SHADOW_MODEL
+        value: llama-3.3-70b-versatile
+      - key: EMBEDDING_PROVIDER
+        value: mock
+      - key: EMBEDDING_API_KEY
+        sync: false
+      - key: PROXY_AUTH_TOKEN
+        sync: false
+      - key: CANARY_SAMPLE_RATE
+        value: 0.50
+      - key: DRIFT_THRESHOLD
+        value: 0.85
