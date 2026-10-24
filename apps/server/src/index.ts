@@ -4,6 +4,7 @@ import {
   ChatCompletionRequest,
   getDatabase,
 } from '@shadow-llm/shared';
+import { ShadowWorker } from '@shadow-llm/worker';
 import Fastify from 'fastify';
 import { handleChatCompletions } from './proxy.js';
 
@@ -134,6 +135,13 @@ async function start() {
   // Initialize DB
   const db = await getDatabase();
   await db.init();
+
+  // Start embedded background shadow worker if enabled
+  if (process.env.RUN_EMBEDDED_WORKER !== 'false') {
+    const worker = new ShadowWorker();
+    worker.start();
+    console.log('[ShadowLLM Server] Embedded background worker started');
+  }
 
   try {
     await server.listen({ port: PORT, host: HOST });
