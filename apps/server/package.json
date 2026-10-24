@@ -1,0 +1,23 @@
+{
+  "name": "@shadow-llm/server",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "main": "./dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "tsc && node --test dist/index.test.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "@shadow-llm/shared": "*",
+    "fastify": "^4.28.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.14",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
