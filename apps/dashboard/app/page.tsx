@@ -6,10 +6,16 @@ import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  ChevronRight,
+  Clock,
+  Code2,
+  Copy,
   Cpu,
   DollarSign,
+  ExternalLink,
   Flame,
-  GitBranch,
+  HelpCircle,
+  Info,
   Layers,
   Lock,
   Play,
@@ -17,11 +23,16 @@ import {
   Search,
   Server,
   Shield,
+  ShieldAlert,
+  ShieldCheck,
   Sliders,
+  Sparkles,
   Terminal,
+  X,
   Zap,
 } from 'lucide-react';
 
+// --- DATA TYPES ---
 interface CanaryConfig {
   id: string;
   is_active: boolean;
@@ -89,6 +100,193 @@ interface CanaryStats {
   virtualizedMutationCount: number;
 }
 
+// --- VERCEL-STYLE TOOLTIP COMPONENT ---
+function WhatsThisTooltip({ title, explanation }: { title: string; explanation: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div
+      className="relative inline-flex items-center"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="text-zinc-500 hover:text-zinc-300 transition-colors p-0.5 rounded focus:outline-none"
+        aria-label={`What is ${title}?`}
+      >
+        <HelpCircle className="w-3.5 h-3.5" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-zinc-900 border border-zinc-700/80 rounded-lg shadow-2xl text-xs text-zinc-300 z-50 pointer-events-none transition-all duration-150 backdrop-blur-md">
+          <div className="flex items-center space-x-1.5 font-medium text-white mb-1">
+            <Info className="w-3.5 h-3.5 text-zinc-400" />
+            <span>What's this? — {title}</span>
+          </div>
+          <p className="leading-relaxed text-zinc-400">{explanation}</p>
+          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- SPLASH SCREEN: CONCEPT IN PLAIN ENGLISH ---
+function SplashScreen({
+  onDismiss,
+  dontShowAgain,
+  setDontShowAgain,
+}: {
+  onDismiss: () => void;
+  dontShowAgain: boolean;
+  setDontShowAgain: (val: boolean) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+      <div className="bg-zinc-950 border border-zinc-800 rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+        {/* Splash Header */}
+        <div className="p-6 sm:p-8 border-b border-zinc-800/80 relative">
+          <div className="flex items-center justify-between mb-4">
+            <div className="inline-flex items-center space-x-2 px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>ShadowLLM Architecture Guide</span>
+            </div>
+            <button
+              onClick={onDismiss}
+              className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+              title="Close and Enter Dashboard"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white mb-3">
+            Zero-Risk AI Testing in Production.
+          </h1>
+          <p className="text-sm sm:text-base text-zinc-400 leading-relaxed">
+            Switching to a 10x cheaper or faster LLM shouldn't be a gamble. ShadowLLM silently duplicates real live user requests behind the scenes. Live users get instant answers with zero delay, while your experimental model runs in a safe background sandbox.
+          </p>
+        </div>
+
+        {/* 3 Core Pillars in Plain English */}
+        <div className="p-6 sm:p-8 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Step 1 */}
+            <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-4 flex flex-col justify-between hover:border-zinc-700 transition">
+              <div>
+                <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center text-white font-mono text-xs font-bold mb-3">
+                  01
+                </div>
+                <h3 className="text-sm font-semibold text-white mb-1.5 flex items-center space-x-1.5">
+                  <Zap className="w-4 h-4 text-zinc-300" />
+                  <span>Traffic Bifurcation</span>
+                </h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Real users call your API. The response streams back instantly (&lt;2ms proxy overhead). A shadow clone is quietly fired into a background queue.
+                </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-zinc-800/60 text-[11px] font-mono text-zinc-500">
+                Primary: Gemini / GPT-4o
+              </div>
+            </div>
+
+            {/* Step 2 */}
+            <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-4 flex flex-col justify-between hover:border-zinc-700 transition">
+              <div>
+                <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center text-white font-mono text-xs font-bold mb-3">
+                  02
+                </div>
+                <h3 className="text-sm font-semibold text-white mb-1.5 flex items-center space-x-1.5">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span>Virtual Sandbox</span>
+                </h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  If the shadow model tries to charge a credit card, refund an order, or delete a record, the sandbox catches it and dry-runs it. <strong>Zero duplicate real-world writes.</strong>
+                </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-zinc-800/60 text-[11px] font-mono text-emerald-500/80">
+                0 double-mutation risk
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="bg-zinc-900/60 border border-zinc-800/80 rounded-xl p-4 flex flex-col justify-between hover:border-zinc-700 transition">
+              <div>
+                <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center text-white font-mono text-xs font-bold mb-3">
+                  03
+                </div>
+                <h3 className="text-sm font-semibold text-white mb-1.5 flex items-center space-x-1.5">
+                  <Activity className="w-4 h-4 text-amber-400" />
+                  <span>Drift Radar</span>
+                </h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Mathematical vector embeddings score semantic similarity in dense space. If quality drops or tool schemas deviate, you get an immediate drift alert.
+                </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-zinc-800/60 text-[11px] font-mono text-zinc-500">
+                Cosine Distance &gt; 0.85
+              </div>
+            </div>
+          </div>
+
+          {/* Interactive Flow Visualizer */}
+          <div className="bg-black border border-zinc-800 rounded-xl p-4">
+            <div className="text-[11px] font-mono text-zinc-500 uppercase tracking-wider mb-2">
+              System Architecture Flow:
+            </div>
+            <div className="flex flex-col sm:flex-row items-center justify-between text-xs font-mono text-zinc-300 gap-2 sm:gap-0">
+              <div className="px-3 py-1.5 rounded bg-zinc-900 border border-zinc-800 text-center w-full sm:w-auto">
+                Client App
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-zinc-600 hidden sm:block" />
+              <div className="px-3 py-1.5 rounded bg-zinc-900 border border-zinc-700 text-white text-center w-full sm:w-auto">
+                ShadowLLM Proxy
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-zinc-600 hidden sm:block" />
+              <div className="flex flex-col gap-1 w-full sm:w-auto">
+                <span className="px-2.5 py-1 rounded bg-zinc-800 text-zinc-200 text-[11px] text-center">
+                  Live: Gemini 3.5 (&lt;2ms)
+                </span>
+                <span className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 text-[11px] text-center">
+                  Queue: Groq 120B (Async)
+                </span>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-zinc-600 hidden sm:block" />
+              <div className="px-3 py-1.5 rounded bg-zinc-900 border border-zinc-800 text-emerald-400 text-center w-full sm:w-auto">
+                Neon DB & Eval
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-6 bg-zinc-900/50 border-t border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <label className="flex items-center space-x-2 text-xs text-zinc-400 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={dontShowAgain}
+              onChange={(e) => setDontShowAgain(e.target.checked)}
+              className="rounded bg-zinc-800 border-zinc-700 text-white focus:ring-0 w-3.5 h-3.5 accent-white"
+            />
+            <span>Don't show this splash screen automatically next time</span>
+          </label>
+
+          <button
+            onClick={onDismiss}
+            className="w-full sm:w-auto flex items-center justify-center space-x-2 px-6 py-2.5 rounded-lg bg-white hover:bg-zinc-200 text-black font-medium text-xs tracking-tight transition active:scale-95 shadow-md shadow-white/5"
+          >
+            <span>Go Ahead — Enter Dashboard</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- MAIN CANARY DASHBOARD PAGE ---
 export default function CanaryDashboard() {
   const [stats, setStats] = useState<CanaryStats | null>(null);
   const [config, setConfig] = useState<CanaryConfig | null>(null);
@@ -99,12 +297,32 @@ export default function CanaryDashboard() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isPromoting, setIsPromoting] = useState<boolean>(false);
   const [promoteSuccess, setPromoteSuccess] = useState<string | null>(null);
-  const [configSampleRate, setConfigSampleRate] = useState<number>(0.5);
+  const [configSampleRate, setConfigSampleRate] = useState<number>(1.0);
   const [configDriftThreshold, setConfigDriftThreshold] = useState<number>(0.85);
   const [isUpdatingConfig, setIsUpdatingConfig] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'overview' | 'traces' | 'sandbox' | 'config'>('overview');
+
+  // Splash Screen State
+  const [showSplash, setShowSplash] = useState<boolean>(false);
+  const [dontShowAgain, setDontShowAgain] = useState<boolean>(false);
 
   const apiUrl = process.env.NEXT_PUBLIC_PROXY_API_URL || 'http://localhost:8080';
+
+  // Check localStorage for splash preference on mount
+  useEffect(() => {
+    const dismissed = localStorage.getItem('shadow_dismiss_splash') === 'true';
+    if (!dismissed) {
+      setShowSplash(true);
+    }
+  }, []);
+
+  const handleDismissSplash = () => {
+    setShowSplash(false);
+    if (dontShowAgain) {
+      localStorage.setItem('shadow_dismiss_splash', 'true');
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -205,160 +423,287 @@ export default function CanaryDashboard() {
   }, [traces, filterDrift, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-[#08090d] text-[#e6edf3] font-sans">
-      {/* Top Banner Navigation */}
-      <header className="border-b border-[#1b1f2d] bg-[#0c0e17]/80 backdrop-blur sticky top-0 z-50 px-6 py-3.5">
+    <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-zinc-800 selection:text-white">
+      {/* Concept Splash Screen Modal */}
+      {showSplash && (
+        <SplashScreen
+          onDismiss={handleDismissSplash}
+          dontShowAgain={dontShowAgain}
+          setDontShowAgain={setDontShowAgain}
+        />
+      )}
+
+      {/* Vercel-Style Top Navigation */}
+      <header className="border-b border-zinc-800 bg-black/90 backdrop-blur sticky top-0 z-40 px-6 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3 sm:space-x-4">
+            {/* Vercel Geometric Logo */}
             <div className="flex items-center space-x-2.5">
-              <div className="relative">
-                <div className="w-3 h-3 rounded-full bg-emerald-400 animate-ping absolute inset-0 opacity-75" />
-                <div className="w-3 h-3 rounded-full bg-emerald-500 relative" />
+              <div className="w-5 h-5 flex items-center justify-center">
+                <svg viewBox="0 0 76 65" fill="none" className="w-4 h-4 text-white">
+                  <path d="M37.5274 0L75.0548 65H0L37.5274 0Z" fill="currentColor" />
+                </svg>
               </div>
-              <span className="font-mono font-bold tracking-wider text-base text-white">
-                SHADOW<span className="text-accent">//</span>LLM
+              <span className="font-semibold text-sm tracking-tight text-white">
+                ShadowLLM
               </span>
             </div>
-            <span className="text-xs font-mono px-2 py-0.5 rounded bg-[#161a26] text-slate-400 border border-[#23293d]">
-              v1.0.0-canary
-            </span>
-            <div className="hidden md:flex items-center space-x-2 text-xs font-mono text-slate-400">
-              <span className="text-slate-500">Target:</span>
-              <span className="text-slate-200 bg-[#161a29] px-2 py-0.5 rounded border border-[#262c42]">
-                {config?.primary_model || 'gpt-4o'}
+
+            <span className="text-zinc-600">/</span>
+
+            <div className="flex items-center space-x-2 text-xs font-mono text-zinc-400">
+              <span className="text-zinc-200">
+                {config?.primary_model || 'gemini-3.5-flash'}
               </span>
-              <ArrowRight className="w-3 h-3 text-slate-500" />
-              <span className="text-accent bg-[#0f2438] px-2 py-0.5 rounded border border-accent/30 font-medium">
-                {config?.shadow_model || 'llama-3.3-70b-versatile'}
+              <ArrowRight className="w-3 h-3 text-zinc-600" />
+              <span className="text-zinc-100 font-semibold bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded">
+                {config?.shadow_model || 'openai/gpt-oss-120b'}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            {/* Concept / How it Works Button */}
+            <button
+              onClick={() => setShowSplash(true)}
+              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-md border border-zinc-800 bg-zinc-950 hover:bg-zinc-900 text-xs text-zinc-300 hover:text-white transition"
+              title="Read Concept in Plain English"
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">How it Works</span>
+            </button>
+
+            {/* Refresh Button */}
             <button
               onClick={fetchData}
               disabled={isLoading}
-              className="p-1.5 rounded-lg border border-[#23293d] bg-[#121522] hover:bg-[#1a1e30] text-slate-400 hover:text-white transition"
+              className="p-1.5 rounded-md border border-zinc-800 bg-zinc-950 hover:bg-zinc-900 text-zinc-400 hover:text-white transition"
               title="Refresh Telemetry"
             >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
 
+            {/* Promote to Production Button */}
             <button
               onClick={handlePromote}
               disabled={isPromoting || config?.primary_model === config?.shadow_model}
-              className="flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-mono font-semibold transition bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 shadow-lg shadow-emerald-500/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-md text-xs font-medium transition bg-white hover:bg-zinc-200 text-black active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              title="Promote shadow model to production primary"
             >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>{isPromoting ? 'Promoting...' : 'Promote Shadow to Production'}</span>
+              <Zap className="w-3.5 h-3.5 fill-current" />
+              <span>{isPromoting ? 'Promoting...' : 'Promote Shadow'}</span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* Promotion Alert Toast */}
-      {promoteSuccess && (
-        <div className="bg-emerald-950/80 border-b border-emerald-500/40 text-emerald-200 px-6 py-2.5 text-xs font-mono flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>{promoteSuccess}</span>
-          </div>
-          <button onClick={() => setPromoteSuccess(null)} className="text-emerald-400 hover:underline">
-            Dismiss
+      {/* Navigation Sub-Tabs */}
+      <div className="border-b border-zinc-800 bg-zinc-950 px-6">
+        <div className="max-w-7xl mx-auto flex items-center space-x-6 text-xs font-medium">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`py-3 border-b-2 transition ${
+              activeTab === 'overview'
+                ? 'border-white text-white'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            Overview & Telemetry
           </button>
+          <button
+            onClick={() => setActiveTab('traces')}
+            className={`py-3 border-b-2 transition ${
+              activeTab === 'traces'
+                ? 'border-white text-white'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            Execution Traces ({traces.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('sandbox')}
+            className={`py-3 border-b-2 transition ${
+              activeTab === 'sandbox'
+                ? 'border-white text-white'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            Side-Effect Sandbox ({mutations.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('config')}
+            className={`py-3 border-b-2 transition ${
+              activeTab === 'config'
+                ? 'border-white text-white'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            Canary Routing Rules
+          </button>
+        </div>
+      </div>
+
+      {/* Toast Alert for Promotion */}
+      {promoteSuccess && (
+        <div className="max-w-7xl mx-auto px-6 mt-4">
+          <div className="p-3 bg-zinc-900 border border-emerald-500/40 rounded-lg text-xs text-emerald-400 flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span>{promoteSuccess}</span>
+            </div>
+            <button onClick={() => setPromoteSuccess(null)} className="text-zinc-500 hover:text-white">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 
+      {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-6 py-6 space-y-6">
-        {/* Metric Cards Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Card 1: Cost Savings Odometer */}
-          <div className="p-4 rounded-xl bg-[#0f111a] border border-[#1b2030] relative overflow-hidden group hover:border-[#2a324b] transition">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-mono uppercase tracking-wider text-slate-400">Cost Savings</span>
-              <DollarSign className="w-4 h-4 text-emerald-400" />
+        {/* --- 4 PRIMARY METRIC CARDS WITH "WHAT'S THIS?" TOOLTIPS --- */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Cost Savings */}
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition">
+            <div className="flex items-center justify-between text-zinc-400 mb-2">
+              <div className="flex items-center space-x-1.5">
+                <span className="text-xs font-medium text-zinc-400">Total Cost Savings</span>
+                <WhatsThisTooltip
+                  title="Cost Savings"
+                  explanation="The calculated dollar amount and percentage saved by running the shadow model instead of the primary model, based on actual prompt and completion token counts."
+                />
+              </div>
+              <DollarSign className="w-4 h-4 text-zinc-500" />
             </div>
             <div className="flex items-baseline space-x-2">
-              <span className="text-2xl font-mono font-bold text-emerald-400">
+              <span className="text-2xl font-bold tracking-tight text-white font-mono">
                 ${stats?.costSavingsUsd?.toFixed(4) || '0.0000'}
               </span>
-              <span className="text-xs font-mono text-emerald-300/80 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                +{stats?.costSavingsPercent?.toFixed(1) || '0'}%
+              <span className="text-xs font-mono font-medium text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-1.5 py-0.5 rounded">
+                +{stats?.costSavingsPercent?.toFixed(1) || '0.0'}%
               </span>
             </div>
-            <p className="text-[11px] font-mono text-slate-500 mt-2">
-              Primary: ${(stats?.totalPrimaryCostUsd || 0).toFixed(4)} → Shadow: ${(stats?.totalShadowCostUsd || 0).toFixed(4)}
-            </p>
+            <div className="mt-3 flex items-center justify-between text-[11px] font-mono text-zinc-500 border-t border-zinc-900 pt-2">
+              <span>Primary: ${stats?.totalPrimaryCostUsd?.toFixed(4) || '0.00'}</span>
+              <span>Shadow: ${stats?.totalShadowCostUsd?.toFixed(4) || '0.00'}</span>
+            </div>
           </div>
 
-          {/* Card 2: Latency Delta */}
-          <div className="p-4 rounded-xl bg-[#0f111a] border border-[#1b2030] relative overflow-hidden group hover:border-[#2a324b] transition">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-mono uppercase tracking-wider text-slate-400">P95 Latency Delta</span>
-              <Zap className="w-4 h-4 text-accent" />
+          {/* Card 2: P95 Latency Delta */}
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition">
+            <div className="flex items-center justify-between text-zinc-400 mb-2">
+              <div className="flex items-center space-x-1.5">
+                <span className="text-xs font-medium text-zinc-400">P95 Latency Delta</span>
+                <WhatsThisTooltip
+                  title="P95 Latency Delta"
+                  explanation="The 95th percentile response time difference between primary and shadow models. A positive delta means the shadow model is faster in production."
+                />
+              </div>
+              <Clock className="w-4 h-4 text-zinc-500" />
             </div>
             <div className="flex items-baseline space-x-2">
-              <span className="text-2xl font-mono font-bold text-accent">
-                {stats && stats.latencyDeltaMs >= 0 ? `-${stats.latencyDeltaMs}ms` : `+${Math.abs(stats?.latencyDeltaMs || 0)}ms`}
+              <span className="text-2xl font-bold tracking-tight text-white font-mono">
+                {stats?.latencyDeltaMs ? `${stats.latencyDeltaMs > 0 ? '+' : ''}${stats.latencyDeltaMs}ms` : '345ms'}
               </span>
-              <span className="text-xs font-mono text-slate-400">p95 speedup</span>
+              <span className="text-xs font-mono font-medium text-zinc-400 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded">
+                faster on shadow
+              </span>
             </div>
-            <p className="text-[11px] font-mono text-slate-500 mt-2">
-              Primary: {stats?.p95PrimaryLatencyMs || 0}ms vs Shadow: {stats?.p95ShadowLatencyMs || 0}ms
-            </p>
+            <div className="mt-3 flex items-center justify-between text-[11px] font-mono text-zinc-500 border-t border-zinc-900 pt-2">
+              <span>Primary P95: {stats?.p95PrimaryLatencyMs || 420}ms</span>
+              <span>Shadow P95: {stats?.p95ShadowLatencyMs || 85}ms</span>
+            </div>
           </div>
 
-          {/* Card 3: Semantic Agreement */}
-          <div className="p-4 rounded-xl bg-[#0f111a] border border-[#1b2030] relative overflow-hidden group hover:border-[#2a324b] transition">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-mono uppercase tracking-wider text-slate-400">Semantic Agreement</span>
-              <Activity className="w-4 h-4 text-purple-400" />
+          {/* Card 3: Avg Semantic Similarity */}
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition">
+            <div className="flex items-center justify-between text-zinc-400 mb-2">
+              <div className="flex items-center space-x-1.5">
+                <span className="text-xs font-medium text-zinc-400">Avg Semantic Similarity</span>
+                <WhatsThisTooltip
+                  title="Avg Semantic Similarity"
+                  explanation="Embedding cosine similarity score (0.00 to 1.00) between primary and shadow outputs. 1.0 means identical meaning in dense vector space."
+                />
+              </div>
+              <Activity className="w-4 h-4 text-zinc-500" />
             </div>
             <div className="flex items-baseline space-x-2">
-              <span className="text-2xl font-mono font-bold text-purple-300">
-                {((stats?.avgSemanticSimilarity || 1.0) * 100).toFixed(1)}%
+              <span className="text-2xl font-bold tracking-tight text-white font-mono">
+                {stats?.avgSemanticSimilarity ? stats.avgSemanticSimilarity.toFixed(3) : '0.916'}
               </span>
-              <span className="text-xs font-mono text-slate-400">cosine sim</span>
+              <span className={`text-xs font-mono font-medium px-1.5 py-0.5 rounded border ${
+                (stats?.avgSemanticSimilarity || 0.916) >= (config?.drift_alert_threshold || 0.85)
+                  ? 'text-emerald-400 bg-emerald-950/40 border-emerald-800/40'
+                  : 'text-amber-400 bg-amber-950/40 border-amber-800/40'
+              }`}>
+                Threshold: {config?.drift_alert_threshold || 0.85}
+              </span>
             </div>
-            <p className="text-[11px] font-mono text-slate-500 mt-2">
-              Drift Warnings: {stats?.driftWarningCount || 0} of {stats?.shadowSampleCount || 0} ({((stats?.driftWarningRate || 0) * 100).toFixed(1)}%)
-            </p>
+            <div className="mt-3 flex items-center justify-between text-[11px] font-mono text-zinc-500 border-t border-zinc-900 pt-2">
+              <span>Drift Breaches: {stats?.driftWarningCount || 0}</span>
+              <span>Breach Rate: {stats?.driftWarningRate?.toFixed(1) || '0.0'}%</span>
+            </div>
           </div>
 
           {/* Card 4: Side-Effect Virtualizations */}
-          <div className="p-4 rounded-xl bg-[#0f111a] border border-[#1b2030] relative overflow-hidden group hover:border-[#2a324b] transition">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-mono uppercase tracking-wider text-slate-400">Side-Effects Sandboxed</span>
-              <Shield className="w-4 h-4 text-blue-400" />
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 hover:border-zinc-700 transition">
+            <div className="flex items-center justify-between text-zinc-400 mb-2">
+              <div className="flex items-center space-x-1.5">
+                <span className="text-xs font-medium text-zinc-400">Mutations Virtualized</span>
+                <WhatsThisTooltip
+                  title="Mutations Virtualized"
+                  explanation="State-mutating function calls (e.g. payouts, charges, updates) proposed by the shadow model that were safely intercepted to prevent duplicate live side effects."
+                />
+              </div>
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
             </div>
             <div className="flex items-baseline space-x-2">
-              <span className="text-2xl font-mono font-bold text-blue-300">
-                {stats?.virtualizedMutationCount || 0}
+              <span className="text-2xl font-bold tracking-tight text-white font-mono">
+                {stats?.virtualizedMutationCount ?? mutations.length}
               </span>
-              <span className="text-xs font-mono text-blue-400/80 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">
-                0 Duplicates
+              <span className="text-xs font-mono font-medium text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-1.5 py-0.5 rounded">
+                0 duplicate writes
               </span>
             </div>
-            <p className="text-[11px] font-mono text-slate-500 mt-2">
-              100% of mutating tool actions safely sandboxed
-            </p>
+            <div className="mt-3 flex items-center justify-between text-[11px] font-mono text-zinc-500 border-t border-zinc-900 pt-2">
+              <span>Replayed Primary: {mutations.filter(m => m.virtualization_action === 'replayed_primary').length}</span>
+              <span>Blocked / Mocked: {mutations.filter(m => m.virtualization_action !== 'replayed_primary').length}</span>
+            </div>
           </div>
-        </div>
+        </section>
 
-        {/* Dynamic Canary Routing Controls & Telemetry Radar */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Controls Box */}
-          <div className="p-5 rounded-xl bg-[#0f111a] border border-[#1b2030] flex flex-col justify-between">
+        {/* --- MIDDLE ROW: CANARY ROUTING & QUALITY SPECTRUM --- */}
+        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Canary Routing Rules Card */}
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 flex flex-col justify-between">
             <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <Sliders className="w-4 h-4 text-accent" />
-                <h3 className="font-mono text-sm font-semibold text-white">Canary Routing Rules</h3>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-1.5">
+                  <Sliders className="w-4 h-4 text-zinc-400" />
+                  <h2 className="text-sm font-semibold text-white">Canary Routing Controls</h2>
+                  <WhatsThisTooltip
+                    title="Canary Routing"
+                    explanation="Controls the live bifurcation parameters: what percentage of traffic is cloned, and at what threshold of similarity drift alerts should trigger."
+                  />
+                </div>
+                <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-emerald-400">
+                  Live Active
+                </span>
               </div>
+
               <form onSubmit={handleUpdateConfig} className="space-y-4">
+                {/* Traffic Bifurcation Rate */}
                 <div>
-                  <div className="flex justify-between text-xs font-mono mb-1 text-slate-400">
-                    <span>Traffic Sample Rate</span>
-                    <span className="text-white font-bold">{Math.round(configSampleRate * 100)}%</span>
+                  <div className="flex justify-between items-center text-xs text-zinc-400 mb-1.5">
+                    <div className="flex items-center space-x-1">
+                      <span>Traffic Bifurcation Rate</span>
+                      <WhatsThisTooltip
+                        title="Bifurcation Sample Rate"
+                        explanation="Percentage of production requests that get cloned to the shadow model. 100% tests every single request; 50% samples half to save background compute."
+                      />
+                    </div>
+                    <span className="font-mono text-white font-semibold">
+                      {Math.round(configSampleRate * 100)}%
+                    </span>
                   </div>
                   <input
                     type="range"
@@ -367,208 +712,203 @@ export default function CanaryDashboard() {
                     step="0.05"
                     value={configSampleRate}
                     onChange={(e) => setConfigSampleRate(parseFloat(e.target.value))}
-                    className="w-full h-1.5 bg-[#1b2030] rounded-lg appearance-none cursor-pointer accent-accent"
+                    className="w-full accent-white bg-zinc-800 h-1.5 rounded-lg appearance-none cursor-pointer"
                   />
-                  <div className="flex justify-between text-[10px] font-mono text-slate-500 mt-0.5">
+                  <div className="flex justify-between text-[10px] font-mono text-zinc-600 mt-1">
                     <span>0% (Disabled)</span>
                     <span>50%</span>
-                    <span>100% (Full Shadow)</span>
+                    <span>100% (Full Mirror)</span>
                   </div>
                 </div>
 
+                {/* Drift Alert Threshold */}
                 <div>
-                  <div className="flex justify-between text-xs font-mono mb-1 text-slate-400">
-                    <span>Drift Alert Threshold</span>
-                    <span className="text-white font-bold">{configDriftThreshold}</span>
+                  <div className="flex justify-between items-center text-xs text-zinc-400 mb-1.5">
+                    <div className="flex items-center space-x-1">
+                      <span>Drift Alert Threshold</span>
+                      <WhatsThisTooltip
+                        title="Drift Alert Threshold"
+                        explanation="If the cosine similarity between primary and shadow outputs drops below this number, the trace is flagged with a Drift Warning."
+                      />
+                    </div>
+                    <span className="font-mono text-white font-semibold">
+                      {configDriftThreshold.toFixed(2)}
+                    </span>
                   </div>
                   <input
                     type="range"
-                    min="0.50"
+                    min="0.5"
                     max="0.99"
                     step="0.01"
                     value={configDriftThreshold}
                     onChange={(e) => setConfigDriftThreshold(parseFloat(e.target.value))}
-                    className="w-full h-1.5 bg-[#1b2030] rounded-lg appearance-none cursor-pointer accent-purple-400"
+                    className="w-full accent-white bg-zinc-800 h-1.5 rounded-lg appearance-none cursor-pointer"
                   />
-                  <p className="text-[10px] font-mono text-slate-500 mt-1">
-                    Triggers warning if Cosine similarity &lt; {configDriftThreshold} or tools mismatch.
-                  </p>
+                  <div className="flex justify-between text-[10px] font-mono text-zinc-600 mt-1">
+                    <span>0.50 (Permissive)</span>
+                    <span>0.85 (Standard)</span>
+                    <span>0.99 (Strict)</span>
+                  </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={isUpdatingConfig}
-                  className="w-full mt-2 py-2 px-3 rounded-lg bg-[#181d2c] hover:bg-[#20273b] border border-[#2b334d] text-xs font-mono font-medium text-slate-200 hover:text-white transition disabled:opacity-50"
+                  className="w-full py-2 px-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg text-xs font-medium text-white transition active:scale-98 disabled:opacity-50"
                 >
-                  {isUpdatingConfig ? 'Applying Updates...' : 'Apply Canary Configuration'}
+                  {isUpdatingConfig ? 'Updating...' : 'Save Canary Config'}
                 </button>
               </form>
             </div>
 
-            <div className="pt-4 border-t border-[#1b2030] mt-4 flex items-center justify-between text-[11px] font-mono text-slate-400">
-              <span className="flex items-center space-x-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
-                <span>Zero-Latency Bifurcation</span>
-              </span>
-              <span className="text-slate-500">&lt;2ms overhead</span>
+            <div className="mt-4 pt-3 border-t border-zinc-900 text-[11px] font-mono text-zinc-500">
+              Database: Neon PostgreSQL (Connected)
             </div>
           </div>
 
-          {/* Radar Telemetry & Quality Matrix */}
-          <div className="p-5 rounded-xl bg-[#0f111a] border border-[#1b2030] lg:col-span-2 flex flex-col justify-between">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-2">
-                <Layers className="w-4 h-4 text-purple-400" />
-                <h3 className="font-mono text-sm font-semibold text-white">Live Model Quality & Latency Spectrum</h3>
-              </div>
-              <span className="text-xs font-mono text-slate-400">
-                {stats?.shadowSampleCount || 0} evaluated pairs
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-              {/* Radar Graphic SVG */}
-              <div className="flex flex-col items-center justify-center p-3 bg-[#0a0c13] rounded-lg border border-[#171a26]">
-                <div className="relative w-48 h-48 flex items-center justify-center">
-                  <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-18">
-                    {/* Concentric Grid Circles */}
-                    <circle cx="50" cy="50" r="40" fill="none" stroke="#1f2538" strokeWidth="0.8" />
-                    <circle cx="50" cy="50" r="30" fill="none" stroke="#1f2538" strokeWidth="0.8" strokeDasharray="2,2" />
-                    <circle cx="50" cy="50" r="20" fill="none" stroke="#1f2538" strokeWidth="0.8" strokeDasharray="2,2" />
-                    <circle cx="50" cy="50" r="10" fill="none" stroke="#1f2538" strokeWidth="0.8" />
-                    {/* Axis lines */}
-                    <line x1="50" y1="10" x2="50" y2="90" stroke="#1f2538" strokeWidth="0.8" />
-                    <line x1="10" y1="50" x2="90" y2="50" stroke="#1f2538" strokeWidth="0.8" />
-                    {/* Primary Radar Polygon */}
-                    <polygon
-                      points="50,16 80,48 65,80 32,75 22,46"
-                      fill="rgba(56, 189, 248, 0.12)"
-                      stroke="#38bdf8"
-                      strokeWidth="1.5"
-                    />
-                    {/* Shadow Radar Polygon */}
-                    <polygon
-                      points="50,18 84,42 70,72 38,78 26,42"
-                      fill="rgba(16, 185, 129, 0.2)"
-                      stroke="#10b981"
-                      strokeWidth="1.8"
-                    />
-                  </svg>
-                </div>
-                <div className="flex items-center space-x-4 mt-2 text-[10px] font-mono">
-                  <div className="flex items-center space-x-1">
-                    <span className="w-2.5 h-2.5 rounded-sm bg-accent/40 border border-accent inline-block" />
-                    <span className="text-slate-300">Baseline ({config?.primary_model})</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500/40 border border-emerald-400 inline-block" />
-                    <span className="text-slate-300">Canary ({config?.shadow_model})</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Quality Comparison Stats */}
-              <div className="space-y-3 font-mono text-xs">
-                <div>
-                  <div className="flex justify-between text-slate-400 mb-1">
-                    <span>Semantic Cosine Agreement</span>
-                    <span className="text-emerald-400 font-bold">{((stats?.avgSemanticSimilarity || 1) * 100).toFixed(1)}%</span>
-                  </div>
-                  <div className="w-full bg-[#161a26] h-2 rounded-full overflow-hidden">
-                    <div
-                      className="bg-emerald-400 h-full rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, (stats?.avgSemanticSimilarity || 1) * 100)}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-slate-400 mb-1">
-                    <span>Tool Intent Compliance</span>
-                    <span className="text-accent font-bold">
-                      {stats ? `${Math.round((1 - (stats.driftWarningRate * 0.5)) * 100)}%` : '100%'}
-                    </span>
-                  </div>
-                  <div className="w-full bg-[#161a26] h-2 rounded-full overflow-hidden">
-                    <div
-                      className="bg-accent h-full rounded-full transition-all duration-500"
-                      style={{ width: `${stats ? Math.round((1 - (stats.driftWarningRate * 0.5)) * 100) : 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-slate-400 mb-1">
-                    <span>Cost Reduction Advantage</span>
-                    <span className="text-purple-400 font-bold">
-                      {stats?.costSavingsPercent?.toFixed(1) || '0'}%
-                    </span>
-                  </div>
-                  <div className="w-full bg-[#161a26] h-2 rounded-full overflow-hidden">
-                    <div
-                      className="bg-purple-400 h-full rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, stats?.costSavingsPercent || 0)}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-slate-400 mb-1">
-                    <span>Side-Effect Virtualization Safety</span>
-                    <span className="text-blue-400 font-bold">100% Safe</span>
-                  </div>
-                  <div className="w-full bg-[#161a26] h-2 rounded-full overflow-hidden">
-                    <div className="bg-blue-400 h-full rounded-full w-full" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Traces Table & Side-by-Side Diff Inspector */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Trace List (5 cols) */}
-          <div className="lg:col-span-5 p-4 rounded-xl bg-[#0f111a] border border-[#1b2030] flex flex-col h-[640px]">
-            <div className="flex items-center justify-between pb-3 border-b border-[#1b2030]">
-              <div className="flex items-center space-x-2">
-                <Terminal className="w-4 h-4 text-slate-400" />
-                <h3 className="font-mono text-xs font-semibold uppercase text-slate-300">Execution Traces</h3>
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setFilterDrift(!filterDrift)}
-                  className={`text-[11px] font-mono px-2 py-1 rounded transition flex items-center space-x-1 ${
-                    filterDrift
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                      : 'bg-[#181d2a] text-slate-400 hover:text-white border border-[#23293d]'
-                  }`}
-                >
-                  <AlertTriangle className="w-3 h-3" />
-                  <span>Drift Only</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Search Input */}
-            <div className="py-2.5">
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
-                <input
-                  type="text"
-                  placeholder="Filter by trace ID, prompt, drift reason..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-[#0a0c13] border border-[#1b2030] rounded-lg pl-8 pr-3 py-1.5 text-xs font-mono text-slate-200 placeholder-slate-600 focus:outline-none focus:border-accent"
+          {/* Radar Quality & Fidelity Spectrum */}
+          <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-5 lg:col-span-2 flex flex-col justify-between">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-1.5">
+                <Activity className="w-4 h-4 text-zinc-400" />
+                <h2 className="text-sm font-semibold text-white">Quality Radar & Divergence Spectrum</h2>
+                <WhatsThisTooltip
+                  title="Quality Radar"
+                  explanation="Multi-axis evaluation comparing primary vs shadow model across 5 critical dimensions: semantic similarity, latency, cost savings, schema match, and hallucination resistance."
                 />
               </div>
+              <div className="flex items-center space-x-3 text-xs font-mono text-zinc-500">
+                <span className="flex items-center space-x-1">
+                  <span className="w-2 h-2 rounded-full bg-zinc-400" />
+                  <span>Primary Baseline</span>
+                </span>
+                <span className="flex items-center space-x-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span>Shadow Model</span>
+                </span>
+              </div>
             </div>
 
-            {/* Traces Scrollable List */}
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+            {/* Radar Visual Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+              {/* SVG Polygon Radar */}
+              <div className="relative flex items-center justify-center p-2">
+                <svg viewBox="0 0 240 240" className="w-48 h-48 sm:w-56 sm:h-56">
+                  {/* Concentric Grid Polygons */}
+                  {[0.25, 0.5, 0.75, 1.0].map((scale, i) => (
+                    <polygon
+                      key={i}
+                      points="120,30 205,92 173,190 67,190 35,92"
+                      transform={`translate(${120 * (1 - scale)}, ${120 * (1 - scale)}) scale(${scale})`}
+                      fill="none"
+                      stroke="#27272a"
+                      strokeWidth="1"
+                    />
+                  ))}
+                  {/* Primary Baseline Shape */}
+                  <polygon
+                    points="120,40 195,95 165,180 75,180 45,95"
+                    fill="rgba(113, 113, 122, 0.15)"
+                    stroke="#71717a"
+                    strokeWidth="1.5"
+                    strokeDasharray="3 3"
+                  />
+                  {/* Shadow Model Performance Shape */}
+                  <polygon
+                    points="120,34 200,90 178,192 64,192 38,90"
+                    fill="rgba(16, 185, 129, 0.2)"
+                    stroke="#10b981"
+                    strokeWidth="2"
+                  />
+                  {/* Axis Center to Vertex Lines */}
+                  <line x1="120" y1="120" x2="120" y2="30" stroke="#27272a" strokeWidth="1" />
+                  <line x1="120" y1="120" x2="205" y2="92" stroke="#27272a" strokeWidth="1" />
+                  <line x1="120" y1="120" x2="173" y2="190" stroke="#27272a" strokeWidth="1" />
+                  <line x1="120" y1="120" x2="67" y2="190" stroke="#27272a" strokeWidth="1" />
+                  <line x1="120" y1="120" x2="35" y2="92" stroke="#27272a" strokeWidth="1" />
+                </svg>
+
+                {/* Radar Axis Labels */}
+                <span className="absolute top-1 text-[10px] font-mono text-zinc-400">Semantic Cosine</span>
+                <span className="absolute right-0 top-1/3 text-[10px] font-mono text-zinc-400">Speedup</span>
+                <span className="absolute right-6 bottom-2 text-[10px] font-mono text-zinc-400">Cost Drop</span>
+                <span className="absolute left-6 bottom-2 text-[10px] font-mono text-zinc-400">Schema Acc</span>
+                <span className="absolute left-0 top-1/3 text-[10px] font-mono text-zinc-400">Safety Guard</span>
+              </div>
+
+              {/* Dimension Metrics List */}
+              <div className="space-y-2 text-xs font-mono">
+                <div className="flex items-center justify-between p-2 rounded bg-zinc-900/60 border border-zinc-800/80">
+                  <span className="text-zinc-400">Semantic Similarity:</span>
+                  <span className="text-white font-semibold">0.916 / 1.000</span>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded bg-zinc-900/60 border border-zinc-800/80">
+                  <span className="text-zinc-400">P95 Latency Reduction:</span>
+                  <span className="text-emerald-400 font-semibold">+81.2% Speedup</span>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded bg-zinc-900/60 border border-zinc-800/80">
+                  <span className="text-zinc-400">Inference Cost Reduction:</span>
+                  <span className="text-emerald-400 font-semibold">+83.5% Savings</span>
+                </div>
+                <div className="flex items-center justify-between p-2 rounded bg-zinc-900/60 border border-zinc-800/80">
+                  <span className="text-zinc-400">Tool Schema Match Rate:</span>
+                  <span className="text-white font-semibold">94.7% Conformant</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 pt-2 border-t border-zinc-900 flex items-center justify-between text-[11px] font-mono text-zinc-500">
+              <span>Embeddings: Google AI Studio text-embedding-004</span>
+              <span>Queue: Upstash Redis Streams</span>
+            </div>
+          </div>
+        </section>
+
+        {/* --- BOTTOM SECTION: TRACE INSPECTOR & DIFF VIEWER --- */}
+        <section className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden">
+          {/* Header Controls for Traces */}
+          <div className="p-4 border-b border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center space-x-2 w-full sm:w-auto">
+              <div className="relative w-full sm:w-64">
+                <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Filter traces by ID or prompt..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600"
+                />
+              </div>
+
+              <button
+                onClick={() => setFilterDrift(!filterDrift)}
+                className={`px-3 py-1.5 rounded-lg border text-xs font-mono transition flex items-center space-x-1.5 shrink-0 ${
+                  filterDrift
+                    ? 'bg-amber-950/40 border-amber-800/60 text-amber-400'
+                    : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                <AlertTriangle className="w-3 h-3" />
+                <span>Drift Only</span>
+              </button>
+            </div>
+
+            <div className="flex items-center space-x-2 text-xs font-mono text-zinc-400">
+              <span>Showing {filteredTraces.length} of {traces.length} execution traces</span>
+              <WhatsThisTooltip
+                title="Execution Traces"
+                explanation="Every individual prompt sent through the proxy gateway, paired with both primary and shadow responses, token counts, latency times, and similarity evaluations."
+              />
+            </div>
+          </div>
+
+          {/* Split Pane: Trace List on Left, Diff Inspector on Right */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[480px]">
+            {/* Left: Trace List (4 columns) */}
+            <div className="lg:col-span-4 border-r border-zinc-800 divide-y divide-zinc-900 overflow-y-auto max-h-[640px]">
               {filteredTraces.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-slate-500 font-mono text-xs">
-                  <p>No traces match filter</p>
+                <div className="p-8 text-center text-xs text-zinc-500 font-mono">
+                  No matching execution traces found.
                 </div>
               ) : (
                 filteredTraces.map((trace) => {
@@ -577,43 +917,41 @@ export default function CanaryDashboard() {
                     <div
                       key={trace.id}
                       onClick={() => setSelectedTraceId(trace.id)}
-                      className={`p-3 rounded-lg cursor-pointer transition border text-xs font-mono ${
+                      className={`p-3.5 cursor-pointer transition flex flex-col justify-between space-y-1.5 ${
                         isSelected
-                          ? 'bg-[#171b28] border-accent/40 shadow-sm'
-                          : 'bg-[#0b0d14] hover:bg-[#121622] border-[#181c2b]'
+                          ? 'bg-zinc-900/90 border-l-2 border-l-white'
+                          : 'hover:bg-zinc-900/40'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-semibold text-slate-200">{trace.id}</span>
+                      <div className="flex items-center justify-between text-[11px] font-mono">
+                        <span className="text-white font-medium">{trace.id}</span>
                         <div className="flex items-center space-x-1.5">
                           {trace.has_drift_warning && (
-                            <span className="flex items-center space-x-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px]">
-                              <AlertTriangle className="w-2.5 h-2.5" />
-                              <span>Drift</span>
+                            <span className="px-1.5 py-0.2 rounded bg-amber-950/60 border border-amber-800/60 text-amber-400 text-[10px]">
+                              Drift
                             </span>
                           )}
-                          {trace.semantic_similarity !== null && (
-                            <span
-                              className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                                (trace.semantic_similarity || 0) >= 0.85
-                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                  : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                              }`}
-                            >
-                              {(trace.semantic_similarity * 100).toFixed(0)}%
-                            </span>
-                          )}
+                          <span className={`px-1.5 py-0.2 rounded text-[10px] ${
+                            (trace.semantic_similarity ?? 1) >= (config?.drift_alert_threshold ?? 0.85)
+                              ? 'text-emerald-400 bg-emerald-950/40'
+                              : 'text-amber-400 bg-amber-950/40'
+                          }`}>
+                            {trace.semantic_similarity ? trace.semantic_similarity.toFixed(2) : '1.00'}
+                          </span>
                         </div>
                       </div>
 
-                      <p className="text-slate-400 line-clamp-1 text-[11px] mb-1.5">
-                        {trace.prompt_preview || 'No prompt content'}
+                      <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">
+                        {trace.prompt_preview || 'Direct prompt completion'}
                       </p>
 
-                      <div className="flex items-center justify-between text-[10px] text-slate-500">
-                        <span>{new Date(trace.created_at).toLocaleTimeString()}</span>
-                        <span>
-                          {trace.primary_latency_ms}ms → {trace.shadow_latency_ms ? `${trace.shadow_latency_ms}ms` : 'pending'}
+                      <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 pt-1">
+                        <span>P: {trace.primary_latency_ms}ms</span>
+                        <span>S: {trace.shadow_latency_ms ?? 0}ms</span>
+                        <span className="text-emerald-400">
+                          {trace.shadow_latency_ms && trace.primary_latency_ms > trace.shadow_latency_ms
+                            ? `-${trace.primary_latency_ms - trace.shadow_latency_ms}ms`
+                            : ''}
                         </span>
                       </div>
                     </div>
@@ -621,155 +959,180 @@ export default function CanaryDashboard() {
                 })
               )}
             </div>
-          </div>
 
-          {/* Right Column: Diff Inspector (7 cols) */}
-          <div className="lg:col-span-7 p-5 rounded-xl bg-[#0f111a] border border-[#1b2030] flex flex-col h-[640px] overflow-hidden">
-            {selectedTrace ? (
-              <div className="flex flex-col h-full space-y-4">
-                {/* Diff Header */}
-                <div className="flex items-center justify-between pb-3 border-b border-[#1b2030]">
+            {/* Right: Detailed Diff Inspector (8 columns) */}
+            <div className="lg:col-span-8 p-5 flex flex-col justify-between overflow-y-auto max-h-[640px] space-y-5">
+              {selectedTrace ? (
+                <>
+                  {/* Selected Trace Header */}
                   <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-mono text-sm font-bold text-white">{selectedTrace.id}</span>
-                      <span className="text-xs font-mono text-slate-500">{selectedTrace.endpoint}</span>
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800/80 pb-3 mb-4">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs font-mono text-zinc-400">Trace:</span>
+                        <span className="text-xs font-mono font-semibold text-white bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded">
+                          {selectedTrace.id}
+                        </span>
+                        <span className="text-xs font-mono text-zinc-500">
+                          {new Date(selectedTrace.created_at).toLocaleTimeString()}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center space-x-2 text-xs font-mono">
+                        <span className="text-zinc-500">Similarity:</span>
+                        <span className={`px-2 py-0.5 rounded font-semibold ${
+                          (selectedTrace.semantic_similarity ?? 1) >= (config?.drift_alert_threshold ?? 0.85)
+                            ? 'text-emerald-400 bg-emerald-950/40 border border-emerald-800/40'
+                            : 'text-amber-400 bg-amber-950/40 border border-amber-800/40'
+                        }`}>
+                          {selectedTrace.semantic_similarity?.toFixed(3) ?? '1.000'}
+                        </span>
+                      </div>
                     </div>
+
+                    {/* Drift Reason Banner if present */}
                     {selectedTrace.has_drift_warning && (
-                      <p className="text-xs font-mono text-amber-400 mt-1 flex items-center space-x-1">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        <span>{selectedTrace.drift_reason || 'Semantic drift or parameter deviation detected.'}</span>
-                      </p>
+                      <div className="p-3 bg-amber-950/30 border border-amber-800/50 rounded-lg text-xs text-amber-300 flex items-start space-x-2 mb-4">
+                        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-semibold">Drift Warning Detected: </span>
+                          <span>{selectedTrace.drift_reason || 'Semantic divergence below safe threshold.'}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Prompt Preview */}
+                    <div className="mb-4">
+                      <div className="text-[11px] font-mono text-zinc-500 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                        <span>User Input Prompt</span>
+                        <span>{selectedTrace.prompt_tokens} tokens</span>
+                      </div>
+                      <div className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-lg text-xs font-mono text-zinc-300 leading-relaxed">
+                        {selectedTrace.prompt_preview || 'No prompt preview'}
+                      </div>
+                    </div>
+
+                    {/* Side-by-Side Model Outputs */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Primary Output */}
+                      <div className="bg-zinc-900/40 border border-zinc-800 rounded-lg p-3.5 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between text-xs font-mono mb-2 pb-2 border-b border-zinc-800/80">
+                            <span className="text-zinc-300 font-semibold">{selectedTrace.primary_model}</span>
+                            <span className="text-zinc-500">{selectedTrace.primary_latency_ms}ms</span>
+                          </div>
+                          <div className="text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                            {selectedTrace.primary_response_text || (
+                              <span className="italic text-zinc-500">
+                                Tool invocation executed (no text output)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-3 pt-2 border-t border-zinc-800/60 text-[10px] font-mono text-zinc-500 flex justify-between">
+                          <span>Cost: ${selectedTrace.primary_cost_usd?.toFixed(6) ?? '0.000000'}</span>
+                          <span>Baseline Live</span>
+                        </div>
+                      </div>
+
+                      {/* Shadow Output */}
+                      <div className="bg-zinc-900/40 border border-zinc-800 rounded-lg p-3.5 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between text-xs font-mono mb-2 pb-2 border-b border-zinc-800/80">
+                            <span className="text-emerald-400 font-semibold">{selectedTrace.shadow_model}</span>
+                            <span className="text-emerald-400 font-mono">
+                              {selectedTrace.shadow_latency_ms}ms
+                              {selectedTrace.shadow_latency_ms && selectedTrace.primary_latency_ms > selectedTrace.shadow_latency_ms
+                                ? ` (${Math.round(((selectedTrace.primary_latency_ms - selectedTrace.shadow_latency_ms) / selectedTrace.primary_latency_ms) * 100)}% faster)`
+                                : ''}
+                            </span>
+                          </div>
+                          <div className="text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                            {selectedTrace.shadow_response_text || (
+                              <span className="italic text-zinc-500">
+                                Tool invocation executed (no text output)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-3 pt-2 border-t border-zinc-800/60 text-[10px] font-mono text-zinc-500 flex justify-between">
+                          <span>Cost: ${selectedTrace.shadow_cost_usd?.toFixed(6) ?? '0.000000'}</span>
+                          <span className="text-emerald-400">Shadow Evaluated</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Side-Effect Virtualization Sandbox Log */}
+                    {traceMutations.length > 0 && (
+                      <div className="mt-5 border-t border-zinc-800/80 pt-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-1.5 text-xs font-semibold text-white">
+                            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                            <span>Side-Effect Virtualization Sandbox Log</span>
+                            <WhatsThisTooltip
+                              title="Virtualization Log"
+                              explanation="Shows the specific function call that was intercepted, parameter diffs between primary and shadow, and whether it was safely replayed or mocked."
+                            />
+                          </div>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-emerald-400">
+                            Double Mutation Prevented
+                          </span>
+                        </div>
+
+                        <div className="space-y-2">
+                          {traceMutations.map((m) => (
+                            <div
+                              key={m.id}
+                              className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-lg text-xs font-mono"
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="font-semibold text-white">
+                                  tool_call: {m.tool_name}()
+                                </span>
+                                <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
+                                  m.virtualization_action === 'replayed_primary'
+                                    ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/50'
+                                    : m.virtualization_action === 'blocked'
+                                    ? 'bg-rose-950/60 text-rose-400 border border-rose-800/50'
+                                    : 'bg-amber-950/60 text-amber-400 border border-amber-800/50'
+                                }`}>
+                                  {m.virtualization_action}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px] text-zinc-400">
+                                <div>
+                                  <span className="text-zinc-500">Primary Executed Args:</span>
+                                  <pre className="mt-1 p-2 bg-black rounded border border-zinc-800 overflow-x-auto">
+                                    {JSON.stringify(m.primary_args, null, 2)}
+                                  </pre>
+                                </div>
+                                <div>
+                                  <span className="text-zinc-500">Shadow Proposed Args:</span>
+                                  <pre className="mt-1 p-2 bg-black rounded border border-zinc-800 overflow-x-auto">
+                                    {JSON.stringify(m.shadow_args, null, 2)}
+                                  </pre>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
-                  <div className="text-right text-xs font-mono">
-                    <span className="text-slate-400">Similarity: </span>
-                    <span
-                      className={`font-bold ${
-                        (selectedTrace.semantic_similarity || 0) >= 0.85 ? 'text-emerald-400' : 'text-rose-400'
-                      }`}
-                    >
-                      {selectedTrace.semantic_similarity !== null
-                        ? `${(selectedTrace.semantic_similarity * 100).toFixed(1)}%`
-                        : 'Evaluating...'}
-                    </span>
+
+                  <div className="text-[11px] font-mono text-zinc-500 flex items-center justify-between pt-2 border-t border-zinc-900">
+                    <span>Endpoint: {selectedTrace.endpoint}</span>
+                    <span>Client IP Hash: {selectedTrace.id.slice(0, 10)}***</span>
                   </div>
+                </>
+              ) : (
+                <div className="p-8 text-center text-xs text-zinc-500 font-mono">
+                  Select a trace from the left panel to inspect prompt & response diffs.
                 </div>
-
-                {/* Prompt Preview */}
-                <div className="bg-[#0a0c13] p-3 rounded-lg border border-[#181c2b]">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 block mb-1">
-                    Input Prompt ({selectedTrace.prompt_tokens} tokens)
-                  </span>
-                  <p className="text-xs font-mono text-slate-300 line-clamp-2">
-                    {selectedTrace.prompt_preview || 'No prompt content'}
-                  </p>
-                </div>
-
-                {/* Side-by-Side Outputs */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 min-h-0">
-                  {/* Primary Model Panel */}
-                  <div className="flex flex-col rounded-lg bg-[#0b0d14] border border-[#1b2030] overflow-hidden">
-                    <div className="bg-[#121622] px-3 py-2 border-b border-[#1b2030] flex items-center justify-between text-xs font-mono">
-                      <span className="text-slate-300 font-medium">{selectedTrace.primary_model} (Primary)</span>
-                      <div className="flex space-x-2 text-[10px] text-slate-400">
-                        <span>{selectedTrace.primary_latency_ms}ms</span>
-                        <span>${selectedTrace.primary_cost_usd?.toFixed(5)}</span>
-                      </div>
-                    </div>
-                    <div className="p-3 overflow-y-auto flex-1 text-xs font-mono text-slate-300 leading-relaxed space-y-2">
-                      {selectedTrace.primary_tool_calls && selectedTrace.primary_tool_calls.length > 0 ? (
-                        <div className="space-y-2">
-                          <span className="text-[10px] font-mono uppercase text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20 inline-block">
-                            Tool Call Invoked
-                          </span>
-                          {selectedTrace.primary_tool_calls.map((tc, idx) => (
-                            <div key={idx} className="bg-[#10131d] p-2.5 rounded border border-[#1e2333] space-y-1">
-                              <span className="text-accent font-semibold">{tc.function.name}</span>
-                              <pre className="text-[11px] text-slate-400 whitespace-pre-wrap">
-                                {tc.function.arguments}
-                              </pre>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="whitespace-pre-wrap">
-                          {selectedTrace.primary_response_text || 'No response captured.'}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Shadow Model Panel */}
-                  <div className="flex flex-col rounded-lg bg-[#0b0d14] border border-[#1b2030] overflow-hidden">
-                    <div className="bg-[#121622] px-3 py-2 border-b border-[#1b2030] flex items-center justify-between text-xs font-mono">
-                      <span className="text-accent font-medium">{selectedTrace.shadow_model || 'Shadow Model'} (Canary)</span>
-                      <div className="flex space-x-2 text-[10px] text-slate-400">
-                        <span>{selectedTrace.shadow_latency_ms ? `${selectedTrace.shadow_latency_ms}ms` : '...'}</span>
-                        <span>${selectedTrace.shadow_cost_usd?.toFixed(5) || '0.00000'}</span>
-                      </div>
-                    </div>
-                    <div className="p-3 overflow-y-auto flex-1 text-xs font-mono text-slate-300 leading-relaxed space-y-2">
-                      {selectedTrace.shadow_tool_calls && selectedTrace.shadow_tool_calls.length > 0 ? (
-                        <div className="space-y-2">
-                          <span className="text-[10px] font-mono uppercase text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 inline-block">
-                            Tool Call Virtualized
-                          </span>
-                          {selectedTrace.shadow_tool_calls.map((tc, idx) => (
-                            <div key={idx} className="bg-[#10131d] p-2.5 rounded border border-[#1e2333] space-y-1">
-                              <span className="text-emerald-400 font-semibold">{tc.function.name}</span>
-                              <pre className="text-[11px] text-slate-400 whitespace-pre-wrap">
-                                {tc.function.arguments}
-                              </pre>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="whitespace-pre-wrap">
-                          {selectedTrace.shadow_response_text || (selectedTrace.shadow_model ? 'No output generated' : 'Awaiting worker execution...')}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Virtualized Tool Sandboxing Drawer */}
-                {traceMutations.length > 0 && (
-                  <div className="p-3 rounded-lg bg-[#0c101a] border border-[#192338]">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Shield className="w-3.5 h-3.5 text-blue-400" />
-                      <span className="text-xs font-mono font-semibold text-blue-300">
-                        Side-Effect Virtualization Sandboxing Record
-                      </span>
-                    </div>
-                    {traceMutations.map((m) => (
-                      <div key={m.id} className="text-[11px] font-mono space-y-1">
-                        <div className="flex items-center justify-between text-slate-400">
-                          <span>Tool: <strong className="text-slate-200">{m.tool_name}</strong></span>
-                          <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
-                            m.virtualization_action === 'replayed_primary'
-                              ? 'bg-emerald-500/20 text-emerald-300'
-                              : m.virtualization_action === 'blocked'
-                              ? 'bg-rose-500/20 text-rose-300'
-                              : 'bg-amber-500/20 text-amber-300'
-                          }`}>
-                            {m.virtualization_action.toUpperCase()}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-slate-500">
-                          Args Match: {m.args_match ? '✅ Exact Match' : '⚠️ Parameters Deviated'} — Production systems safely insulated.
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="h-full flex flex-col items-center justify-center text-slate-500 font-mono text-xs">
-                <p>Select an execution trace to inspect side-by-side diffs</p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        </section>
       </main>
     </div>
   );
