@@ -2,6 +2,8 @@ import cors from '@fastify/cors';
 import {
   CanaryConfig,
   ChatCompletionRequest,
+  PromptComparisonRequest,
+  comparePrompts,
   getDatabase,
 } from '@shadow-llm/shared';
 import { ShadowWorker } from '@shadow-llm/worker';
@@ -116,6 +118,25 @@ export async function buildServer() {
     const mutations = await db.getMutations();
     return { mutations };
   });
+
+
+  // 5. Prompt Evaluator & Judge Comparison Endpoint
+  fastify.post<{ Body: PromptComparisonRequest }>(
+    '/api/v1/prompt-test/compare',
+    async (req, reply) => {
+      try {
+        const body = req.body;
+        if (!body || !body.targetA || !body.targetB) {
+          return reply.status(400).send({ error: 'targetA and targetB are required' });
+        }
+        const result = await comparePrompts(body);
+        return reply.send(result);
+      } catch (err: any) {
+        req.log.error({ err }, 'Prompt comparison failed');
+        return reply.status(500).send({ error: err.message || 'Internal evaluation error' });
+      }
+    }
+  );
 
   fastify.post('/api/v1/canary/promote', async () => {
     const db = await getDatabase();

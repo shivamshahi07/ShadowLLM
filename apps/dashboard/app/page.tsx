@@ -29,6 +29,7 @@ import {
   Shield,
   ShieldAlert,
   ShieldCheck,
+  Scale,
   Sliders,
   Sparkles,
   Split,
@@ -39,6 +40,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { MarkdownRenderer } from '../components/MarkdownRenderer';
+import { PromptTester } from '../components/PromptTester';
 import { Tooltip } from '../components/Tooltip';
 
 // --- DATA TYPES ---
@@ -332,7 +334,7 @@ export default function CanaryDashboard() {
   const [configDriftThreshold, setConfigDriftThreshold] = useState<number>(0.85);
   const [isUpdatingConfig, setIsUpdatingConfig] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'traces' | 'sandbox' | 'config' | 'playground' | 'multiuser'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'traces' | 'sandbox' | 'prompttester' | 'playground' | 'multiuser' | 'config'>('overview');
 
   // Theme State: 'light' (default) vs 'dark'
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -734,6 +736,17 @@ export default function CanaryDashboard() {
               }`}
             >
               Side-Effect Sandbox ({mutations.length})
+            </button>
+          </Tooltip>
+
+
+          <Tooltip content="Compare prompt variations or models side-by-side with automated Flash Lite Judge">
+            <button
+              onClick={() => setActiveTab('prompttester')}
+              className={"py-3 border-b-2 whitespace-nowrap transition flex items-center space-x-1.5 " + (activeTab === "prompttester" ? "border-black text-black dark:border-white dark:text-white font-semibold" : "border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200")}
+            >
+              <Scale className="w-3 h-3 text-amber-500" />
+              <span>Prompt Tester & Judge</span>
             </button>
           </Tooltip>
 

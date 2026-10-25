@@ -193,3 +193,61 @@ export interface CanaryStats {
   latencyDeltaMs: number;
   virtualizedMutationCount: number;
 }
+
+export type PromptTestMode = 'same_model_diff_prompt' | 'diff_model_same_prompt' | 'diff_model_diff_prompt';
+
+export interface PromptEvaluationTarget {
+  model: string;
+  prompt: string;
+  systemPrompt?: string;
+  temperature?: number;
+}
+
+export interface PromptTargetExecutionResult {
+  model: string;
+  prompt: string;
+  systemPrompt?: string;
+  content: string;
+  latencyMs: number;
+  tokens: {
+    prompt: number;
+    completion: number;
+    total: number;
+  };
+  costUsd: number;
+  rating?: number; // 1-10
+  feedback?: string;
+}
+
+export interface JudgeEvaluationResult {
+  winner: 'target_a' | 'target_b' | 'tie';
+  verdict: string;
+  summary: string;
+  targetARating: number; // 1 to 10
+  targetBRating: number; // 1 to 10
+  targetAFeedback: string;
+  targetBFeedback: string;
+  criteriaAnalysis: {
+    accuracy: string;
+    clarity: string;
+    adherence: string;
+    efficiency: string;
+  };
+  judgeModel: string;
+  latencyMs: number;
+}
+
+export interface PromptComparisonRequest {
+  mode: PromptTestMode;
+  targetA: PromptEvaluationTarget;
+  targetB: PromptEvaluationTarget;
+  judgeModel?: string; // e.g. gemini-3.5-flash-lite
+}
+
+export interface PromptComparisonResponse {
+  mode: PromptTestMode;
+  targetA: PromptTargetExecutionResult;
+  targetB: PromptTargetExecutionResult;
+  judge: JudgeEvaluationResult;
+  timestamp: string;
+}
