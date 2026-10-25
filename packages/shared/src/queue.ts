@@ -1,4 +1,3 @@
-import { EventEmitter } from 'node:events';
 import { ShadowPayload } from './types.js';
 
 export interface IStreamQueue {
@@ -8,53 +7,51 @@ export interface IStreamQueue {
 }
 
 /**
- * In-memory fallback stream queue for zero-dependency local development and testing.
+ * In-memory buffer queue fallback for local development or when Redis is unavailable.
  */
 class MemoryStreamQueue implements IStreamQueue {
   private queue: ShadowPayload[] = [];
-  private emitter = new EventEmitter();
-  private isProcessing = false;
-  private consumerActive = false;
+  private consumers: Array<(payload: ShadowPayload) => Promise<void>> = [];
+  private processing = false;
 
   async enqueue(payload: ShadowPayload): Promise<string> {
+    const id = `mem_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     this.queue.push(payload);
-    // Non-blocking trigger to consumer
-    setImmediate(() => {
-      this.emitter.emit('new_item');
-    });
-    return `mem_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    this.triggerConsumers();
+    return id;
   }
 
   startConsumer(handler: (payload: ShadowPayload) => Promise<void>): () => void {
-    this.consumerActive = true;
-
-    const processQueue = async () => {
-      if (this.isProcessing || !this.consumerActive) return;
-      this.isProcessing = true;
-
-      while (this.consumerActive && this.queue.length > 0) {
-        const item = this.queue.shift();
-        if (item) {
-          try {
-            await handler(item);
-          } catch (err) {
-            console.error('[MemoryStreamQueue] Error processing shadow item:', err);
-          }
-        }
-      }
-
-      this.isProcessing = false;
-    };
-
-    this.emitter.on('new_item', processQueue);
-
-    // Initial drain in case items were enqueued before consumer started
-    setImmediate(processQueue);
+    this.consumers.push(handler);
+    this.triggerConsumers();
 
     return () => {
-      this.consumerActive = false;
-      this.emitter.off('new_item', processQueue);
+      const idx = this.consumers.indexOf(handler);
+      if (idx !== -1) {
+        this.consumers.splice(idx, 1);
+      }
     };
+  }
+
+  private async triggerConsumers() {
+    if (this.processing || this.queue.length === 0 || this.consumers.length === 0) {
+      return;
+    }
+
+    this.processing = true;
+    while (this.queue.length > 0) {
+      const item = this.queue.shift();
+      if (!item) break;
+
+      for (const consumer of this.consumers) {
+        try {
+          await consumer(item);
+        } catch (err) {
+          console.error('[MemoryStreamQueue] Consumer error:', err);
+        }
+      }
+    }
+    this.processing = false;
   }
 
   size(): number {
@@ -82,13 +79,13 @@ class UpstashRedisStreamQueue implements IStreamQueue {
   async enqueue(payload: ShadowPayload): Promise<string> {
     try {
       const serialized = JSON.stringify(payload);
-      const res = await fetch(`${this.url}/xadd/${this.streamKey}/*`, {
+      const res = await fetch(this.url, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(['payload', serialized]),
+        body: JSON.stringify(['XADD', this.streamKey, '*', 'payload', serialized]),
       });
 
       if (!res.ok) {
@@ -105,20 +102,43 @@ class UpstashRedisStreamQueue implements IStreamQueue {
 
   startConsumer(handler: (payload: ShadowPayload) => Promise<void>): () => void {
     let running = true;
-    let lastId = '$'; // Start from current end
+    let lastId = '0-0';
 
     // Also run fallback memory consumer in case of degraded mode
     const stopMemory = this.fallbackMemory.startConsumer(handler);
 
-    const poll = async () => {
+    const initAndPoll = async () => {
+      // 1. Find the latest ID so we only process new events moving forward
+      try {
+        const latestRes = await fetch(this.url, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${this.token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(['XREVRANGE', this.streamKey, '+', '-', 'COUNT', '1']),
+        });
+        if (latestRes.ok) {
+          const latestData = (await latestRes.json()) as { result?: Array<[string, any]> };
+          if (latestData.result && latestData.result.length > 0 && latestData.result[0][0]) {
+            lastId = latestData.result[0][0];
+          }
+        }
+      } catch (err) {
+        console.warn('[UpstashRedisStreamQueue] Failed to query latest stream ID on init:', err);
+      }
+
+      // 2. Continuous polling loop
       while (running) {
         try {
-          // XREAD count 10 STREAMS streamKey lastId
-          const res = await fetch(`${this.url}/xread/count/10/streams/${this.streamKey}/${encodeURIComponent(lastId)}`, {
+          // XREAD COUNT 10 STREAMS streamKey lastId
+          const res = await fetch(this.url, {
             method: 'POST',
             headers: {
               Authorization: `Bearer ${this.token}`,
+              'Content-Type': 'application/json',
             },
+            body: JSON.stringify(['XREAD', 'COUNT', '10', 'STREAMS', this.streamKey, lastId]),
           });
 
           if (res.ok) {
@@ -152,7 +172,7 @@ class UpstashRedisStreamQueue implements IStreamQueue {
       }
     };
 
-    poll();
+    initAndPoll();
 
     return () => {
       running = false;
@@ -165,22 +185,27 @@ class UpstashRedisStreamQueue implements IStreamQueue {
   }
 }
 
-// Global Singleton factory
 let streamQueueInstance: IStreamQueue | null = null;
 
 export function getStreamQueue(): IStreamQueue {
-  if (streamQueueInstance) return streamQueueInstance;
+  if (streamQueueInstance) {
+    return streamQueueInstance;
+  }
 
-  const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
-  const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
-  if (upstashUrl && upstashToken) {
+  if (redisUrl && redisToken) {
     console.log('[Queue] Initializing Upstash Redis Stream Queue');
-    streamQueueInstance = new UpstashRedisStreamQueue(upstashUrl, upstashToken);
+    streamQueueInstance = new UpstashRedisStreamQueue(redisUrl, redisToken);
   } else {
     console.log('[Queue] Using zero-latency In-Memory Stream Buffer (offline mode)');
     streamQueueInstance = new MemoryStreamQueue();
   }
 
   return streamQueueInstance;
+}
+
+export function resetStreamQueue(): void {
+  streamQueueInstance = null;
 }

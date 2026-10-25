@@ -16,13 +16,20 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
   'claude-3-5-sonnet': { inputPerMillion: 3.00, outputPerMillion: 15.00 },
   'claude-3-5-haiku': { inputPerMillion: 0.80, outputPerMillion: 4.00 },
 
-  // Groq (Llama / Mistral)
+  // Groq (Llama / OSS / Qwen)
+  'openai/gpt-oss-120b': { inputPerMillion: 0.60, outputPerMillion: 0.80 },
+  'openai/gpt-oss-20b': { inputPerMillion: 0.10, outputPerMillion: 0.20 },
+  'qwen/qwen3.8-27b': { inputPerMillion: 0.20, outputPerMillion: 0.30 },
   'llama-3.3-70b-versatile': { inputPerMillion: 0.59, outputPerMillion: 0.79 },
   'llama-3.1-70b-versatile': { inputPerMillion: 0.59, outputPerMillion: 0.79 },
   'llama-3.1-8b-instant': { inputPerMillion: 0.05, outputPerMillion: 0.08 },
   'mixtral-8x7b-32768': { inputPerMillion: 0.24, outputPerMillion: 0.24 },
 
   // Google Gemini
+  'gemini-3.8-flash': { inputPerMillion: 0.10, outputPerMillion: 0.40 },
+  'gemini-3.5-flash': { inputPerMillion: 0.10, outputPerMillion: 0.40 },
+  'gemini-3.5-flash-lite': { inputPerMillion: 0.05, outputPerMillion: 0.20 },
+  'gemini-2.5-flash': { inputPerMillion: 0.10, outputPerMillion: 0.40 },
   'gemini-2.0-flash': { inputPerMillion: 0.10, outputPerMillion: 0.40 },
   'gemini-2.0-flash-exp': { inputPerMillion: 0.10, outputPerMillion: 0.40 },
   'gemini-1.5-flash': { inputPerMillion: 0.075, outputPerMillion: 0.30 },
@@ -52,8 +59,9 @@ export function calculateCost(model: string, promptTokens: number, completionTok
     pricing = { inputPerMillion: 1.00, outputPerMillion: 3.00 };
   }
 
-  const inputCost = (promptTokens / 1_000_000) * pricing.inputPerMillion;
-  const outputCost = (completionTokens / 1_000_000) * pricing.outputPerMillion;
+  const promptCost = (promptTokens / 1_000_000) * pricing.inputPerMillion;
+  const completionCost = (completionTokens / 1_000_000) * pricing.outputPerMillion;
+  const total = promptCost + completionCost;
 
-  return Number((inputCost + outputCost).toFixed(6));
+  return Number(total.toFixed(6));
 }

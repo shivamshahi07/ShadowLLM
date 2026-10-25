@@ -84,9 +84,10 @@ export async function getEmbedding(text: string): Promise<number[]> {
 
   if (apiKey && provider !== 'mock') {
     try {
-      if (provider === 'gemini') {
+      if (provider === 'gemini' || provider === 'google') {
+        const embModel = process.env.EMBEDDING_MODEL || 'gemini-embedding-001';
         const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${embModel}:embedContent?key=${apiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
