@@ -14,6 +14,7 @@
     "worker": "node apps/worker/dist/index.js",
     "dev:server": "npm run dev --workspace=@shadow-llm/server",
     "dev:dashboard": "npm run dev --workspace=@shadow-llm/dashboard",
+    "start:dashboard": "npm run start --workspace=@shadow-llm/dashboard",
     "dev:worker": "npm run dev --workspace=@shadow-llm/worker",
     "seed": "npm run seed --workspace=@shadow-llm/shared",
     "test": "npm test --workspace=@shadow-llm/shared && npm test --workspace=@shadow-llm/server && npm test --workspace=@shadow-llm/worker",
