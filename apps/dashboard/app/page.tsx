@@ -17,6 +17,7 @@ import {
   HelpCircle,
   Info,
   Layers,
+  Key,
   Lock,
   Moon,
   Network,
@@ -42,6 +43,10 @@ import {
 import { MarkdownRenderer } from '../components/MarkdownRenderer';
 import { PromptTester } from '../components/PromptTester';
 import { Tooltip } from '../components/Tooltip';
+import { AuthModal } from '../components/AuthModal';
+import { OnboardingScreen } from '../components/OnboardingScreen';
+import { ApiKeyModal } from '../components/ApiKeyModal';
+import { loadDecryptedKeys } from '../components/crypto-utils';
 
 // --- DATA TYPES ---
 interface CanaryConfig {
@@ -348,6 +353,17 @@ export default function CanaryDashboard() {
 
   // Splash Screen State
   const [showSplash, setShowSplash] = useState<boolean>(false);
+  // Authentication & BYOK State
+  const [currentUser, setCurrentUser] = useState<{ email: string; isMaster: boolean } | null>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
+  const [needsOnboarding, setNeedsOnboarding] = useState<boolean>(false);
+  const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
+  const [userKeys, setUserKeys] = useState<{
+    geminiApiKey: string;
+    groqApiKey: string;
+    openrouterApiKey: string;
+  }>({ geminiApiKey: '', groqApiKey: '', openrouterApiKey: '' });
+
   const [dontShowAgain, setDontShowAgain] = useState<boolean>(false);
 
   const apiUrl = process.env.NEXT_PUBLIC_PROXY_API_URL || 'http://localhost:8080';
@@ -378,6 +394,67 @@ export default function CanaryDashboard() {
     } else {
       document.documentElement.classList.remove('dark');
     }
+  };
+
+  // Initialize auth and stored session
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        const stored = localStorage.getItem('shadow_current_user');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setCurrentUser(parsed);
+          if (!parsed.isMaster) {
+            const keys = await loadDecryptedKeys(parsed.email);
+            setUserKeys(keys);
+            const hasKeys = Boolean(keys.geminiApiKey || keys.groqApiKey || keys.openrouterApiKey);
+            if (!hasKeys) {
+              setNeedsOnboarding(true);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load session:', err);
+      } finally {
+        setIsAuthChecking(false);
+      }
+    };
+    initAuth();
+  }, []);
+
+  const handleAuthSuccess = async (user: { email: string; isMaster: boolean }) => {
+    setCurrentUser(user);
+    localStorage.setItem('shadow_current_user', JSON.stringify(user));
+    if (user.isMaster) {
+      setNeedsOnboarding(false);
+    } else {
+      const keys = await loadDecryptedKeys(user.email);
+      setUserKeys(keys);
+      const hasKeys = Boolean(keys.geminiApiKey || keys.groqApiKey || keys.openrouterApiKey);
+      if (!hasKeys) {
+        setNeedsOnboarding(true);
+      } else {
+        setNeedsOnboarding(false);
+      }
+    }
+  };
+
+  const handleOnboardingComplete = (
+    keys: { geminiApiKey: string; groqApiKey: string; openrouterApiKey: string },
+    showGuideModal: boolean
+  ) => {
+    setUserKeys(keys);
+    setNeedsOnboarding(false);
+    if (showGuideModal) {
+      setShowSplash(true);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('shadow_current_user');
+    setCurrentUser(null);
+    setNeedsOnboarding(false);
+    setUserKeys({ geminiApiKey: '', groqApiKey: '', openrouterApiKey: '' });
   };
 
   const handleDismissSplash = () => {
@@ -607,6 +684,28 @@ export default function CanaryDashboard() {
     });
   }, [traces, filterDrift, searchQuery]);
 
+  if (isAuthChecking) {
+    return (
+      <div className="min-h-screen bg-zinc-50 dark:bg-black flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <AuthModal apiUrl={apiUrl} onSuccess={handleAuthSuccess} />;
+  }
+
+  if (needsOnboarding) {
+    return (
+      <OnboardingScreen
+        userEmail={currentUser.email}
+        onComplete={handleOnboardingComplete}
+        initialKeys={userKeys}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black text-zinc-900 dark:text-zinc-100 font-sans selection:bg-zinc-200 dark:selection:bg-zinc-800 overflow-x-hidden">
       {/* Concept Splash Screen Modal */}
@@ -615,6 +714,17 @@ export default function CanaryDashboard() {
           onDismiss={handleDismissSplash}
           dontShowAgain={dontShowAgain}
           setDontShowAgain={setDontShowAgain}
+        />
+      )}
+
+      {/* Key Vault Modal */}
+      {showApiKeyModal && currentUser && (
+        <ApiKeyModal
+          userEmail={currentUser.email}
+          isOpen={showApiKeyModal}
+          onClose={() => setShowApiKeyModal(false)}
+          currentKeys={userKeys}
+          onKeysUpdated={(updated) => setUserKeys(updated)}
         />
       )}
 
@@ -693,6 +803,40 @@ export default function CanaryDashboard() {
                 <span>{isPromoting ? 'Promoting...' : 'Promote Shadow'}</span>
               </button>
             </Tooltip>
+
+            {/* User Profile & BYOK Indicator */}
+            {currentUser && (
+              <div className="flex items-center space-x-1.5 sm:space-x-2 border-l border-zinc-200 dark:border-zinc-800 pl-2 sm:pl-3">
+                {!currentUser.isMaster && (
+                  <Tooltip content="Manage your encrypted Gemini, Groq, and OpenRouter API keys">
+                    <button
+                      onClick={() => setShowApiKeyModal(true)}
+                      className="flex items-center space-x-1 px-2 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-xs text-zinc-700 dark:text-zinc-300 transition"
+                    >
+                      <Key className="w-3.5 h-3.5 text-zinc-500" />
+                      <span className="hidden md:inline font-mono">BYOK</span>
+                      {(userKeys.geminiApiKey || userKeys.groqApiKey || userKeys.openrouterApiKey) && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      )}
+                    </button>
+                  </Tooltip>
+                )}
+
+                <div className="flex items-center space-x-1 px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs font-mono text-zinc-800 dark:text-zinc-200">
+                  <Users className="w-3.5 h-3.5 text-zinc-400" />
+                  <span className="max-w-[100px] sm:max-w-[140px] truncate">{currentUser.email}</span>
+                </div>
+
+                <Tooltip content="Log out of session">
+                  <button
+                    onClick={handleLogout}
+                    className="p-1.5 text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900 rounded-md transition"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                  </button>
+                </Tooltip>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -1388,7 +1532,7 @@ export default function CanaryDashboard() {
         {/* --- TAB: PROMPT TESTER & JUDGE --- */}
         {activeTab === 'prompttester' && (
           <section className="animate-in fade-in duration-150">
-            <PromptTester apiUrl={apiUrl} />
+            <PromptTester apiUrl={apiUrl} userApiKeys={userKeys} isMaster={currentUser?.isMaster} />
           </section>
         )}
 

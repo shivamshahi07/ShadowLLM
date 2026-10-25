@@ -237,7 +237,16 @@ export interface JudgeEvaluationResult {
   latencyMs: number;
 }
 
+
+export interface UserApiKeys {
+  geminiApiKey?: string;
+  groqApiKey?: string;
+  openrouterApiKey?: string;
+}
+
 export interface PromptComparisonRequest {
+  userApiKeys?: UserApiKeys;
+  isMaster?: boolean;
   mode: PromptTestMode;
   targetA: PromptEvaluationTarget;
   targetB: PromptEvaluationTarget;

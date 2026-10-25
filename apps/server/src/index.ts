@@ -120,7 +120,53 @@ export async function buildServer() {
   });
 
 
-  // 5. Prompt Evaluator & Judge Comparison Endpoint
+  // 5. Auth Endpoints (Master Admin vs Regular BYOK Users)
+  fastify.post<{ Body: { email?: string; password?: string } }>(
+    '/api/v1/auth/login',
+    async (req, reply) => {
+      const { email, password } = req.body || {};
+      if (!email || !password) {
+        return reply.status(400).send({ error: 'Email and password are required' });
+      }
+
+      const masterEmail = (process.env.MASTER_ADMIN_EMAIL || 'shivam@shadowllm.com').toLowerCase();
+      const masterPass = process.env.MASTER_ADMIN_PASSWORD || 'ShadowMaster#2026';
+
+      const inputEmail = email.trim().toLowerCase();
+      const isMaster = (inputEmail === masterEmail || inputEmail === 'admin@shadowllm.io') && password === masterPass;
+
+      return reply.send({
+        success: true,
+        email: inputEmail,
+        isMaster,
+        token: (isMaster ? 'mstr_' : 'usr_') + Buffer.from(inputEmail).toString('hex'),
+      });
+    }
+  );
+
+  fastify.post<{ Body: { email?: string; password?: string } }>(
+    '/api/v1/auth/signup',
+    async (req, reply) => {
+      const { email, password } = req.body || {};
+      if (!email || !password || password.length < 4) {
+        return reply.status(400).send({ error: 'Valid email and password (min 4 characters) required' });
+      }
+
+      const masterEmail = (process.env.MASTER_ADMIN_EMAIL || 'shivam@shadowllm.com').toLowerCase();
+      const masterPass = process.env.MASTER_ADMIN_PASSWORD || 'ShadowMaster#2026';
+      const inputEmail = email.trim().toLowerCase();
+      const isMaster = (inputEmail === masterEmail || inputEmail === 'admin@shadowllm.io') && password === masterPass;
+
+      return reply.send({
+        success: true,
+        email: inputEmail,
+        isMaster,
+        token: (isMaster ? 'mstr_' : 'usr_') + Buffer.from(inputEmail).toString('hex'),
+      });
+    }
+  );
+
+  // 6. Prompt Evaluator & Judge Comparison Endpoint (with BYOK & Mindful Rate Limit Handling)
   fastify.post<{ Body: PromptComparisonRequest }>(
     '/api/v1/prompt-test/compare',
     async (req, reply) => {
@@ -129,7 +175,19 @@ export async function buildServer() {
         if (!body || !body.targetA || !body.targetB) {
           return reply.status(400).send({ error: 'targetA and targetB are required' });
         }
-        const result = await comparePrompts(body);
+
+        const isMaster = req.headers['x-is-master'] === 'true' || Boolean(body.isMaster);
+        const userApiKeys = body.userApiKeys || {
+          geminiApiKey: req.headers['x-gemini-key'] as string | undefined,
+          groqApiKey: req.headers['x-groq-key'] as string | undefined,
+          openrouterApiKey: req.headers['x-openrouter-key'] as string | undefined,
+        };
+
+        const result = await comparePrompts({
+          ...body,
+          userApiKeys,
+          isMaster,
+        });
         return reply.send(result);
       } catch (err: any) {
         req.log.error({ err }, 'Prompt comparison failed');
@@ -137,6 +195,7 @@ export async function buildServer() {
       }
     }
   );
+
 
   fastify.post('/api/v1/canary/promote', async () => {
     const db = await getDatabase();

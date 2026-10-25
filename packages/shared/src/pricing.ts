@@ -35,6 +35,12 @@ export const MODEL_PRICING: Record<string, ModelPricing> = {
   'gemini-1.5-flash': { inputPerMillion: 0.075, outputPerMillion: 0.30 },
   'gemini-1.5-pro': { inputPerMillion: 1.25, outputPerMillion: 5.00 },
 
+
+  // OpenRouter Models
+  'meta-llama/llama-3.3-70b-instruct': { inputPerMillion: 0.12, outputPerMillion: 0.30 },
+  'deepseek/deepseek-chat': { inputPerMillion: 0.14, outputPerMillion: 0.28 },
+  'mistralai/mistral-large-2407': { inputPerMillion: 2.00, outputPerMillion: 6.00 },
+  'anthropic/claude-3.5-sonnet': { inputPerMillion: 3.00, outputPerMillion: 15.00 },
   // Mocks
   'mock-primary': { inputPerMillion: 2.50, outputPerMillion: 10.00 },
   'mock-shadow': { inputPerMillion: 0.50, outputPerMillion: 0.80 },

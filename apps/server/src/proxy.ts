@@ -38,11 +38,35 @@ export async function handleChatCompletions(
   // Determine if this request should be sampled for shadowing
   const shouldShadow = canaryConfig.is_active && Math.random() < canaryConfig.sample_rate;
 
+  // Check caller credentials / BYOK headers
+  const isMaster = req.headers['x-is-master'] === 'true';
+  const userGeminiKey = req.headers['x-gemini-key'] as string | undefined;
+  const userGroqKey = req.headers['x-groq-key'] as string | undefined;
+  const userOpenRouterKey = req.headers['x-openrouter-key'] as string | undefined;
+
   // Primary model target
-  const primaryProvider = canaryConfig.primary_provider;
   const primaryModel = body.model || canaryConfig.primary_model;
-  const primaryApiKey = process.env.PRIMARY_API_KEY;
-  const primaryBaseUrl = canaryConfig.primary_base_url || 'https://api.openai.com/v1';
+  const pModelLower = primaryModel.toLowerCase();
+
+  let primaryBaseUrl = canaryConfig.primary_base_url || 'https://api.openai.com/v1';
+  let primaryApiKey: string | undefined = undefined;
+  let primaryProvider = canaryConfig.primary_provider;
+
+  if (pModelLower.includes('openrouter') || pModelLower.startsWith('deepseek/') || pModelLower.startsWith('mistralai/') || (pModelLower.startsWith('meta-llama/') && !pModelLower.includes('groq'))) {
+    primaryProvider = 'openrouter';
+    primaryBaseUrl = 'https://openrouter.ai/api/v1';
+    primaryApiKey = userOpenRouterKey || (isMaster ? (process.env.OPENROUTER_KEY || process.env.OPENROUTER_API_KEY) : undefined);
+  } else if (pModelLower.startsWith('gemini') || pModelLower.includes('google')) {
+    primaryProvider = 'google';
+    primaryBaseUrl = 'https://generativelanguage.googleapis.com/v1beta/openai';
+    primaryApiKey = userGeminiKey || (isMaster ? (process.env.GEMINI_API_KEY || process.env.PRIMARY_API_KEY) : undefined);
+  } else if (pModelLower.includes('groq') || pModelLower.includes('gpt-oss') || pModelLower.includes('llama') || pModelLower.includes('qwen')) {
+    primaryProvider = 'groq';
+    primaryBaseUrl = 'https://api.groq.com/openai/v1';
+    primaryApiKey = userGroqKey || (isMaster ? (process.env.GROQ_API_KEY || process.env.SHADOW_API_KEY) : undefined);
+  } else {
+    primaryApiKey = isMaster ? process.env.PRIMARY_API_KEY : undefined;
+  }
 
   // Extract prompt preview for dashboard
   const lastUserMsg = body.messages?.filter((m) => m.role === 'user').pop();

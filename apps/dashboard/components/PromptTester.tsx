@@ -78,6 +78,10 @@ const AVAILABLE_MODELS = [
   { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant (Groq)', group: 'Fast & Lightweight' },
   { id: 'gpt-4o', label: 'GPT-4o (OpenAI)', group: 'Flagship' },
   { id: 'gpt-4o-mini', label: 'GPT-4o Mini (OpenAI)', group: 'Fast & Lightweight' },
+  { id: 'meta-llama/llama-3.3-70b-instruct', label: 'Llama 3.3 70B (OpenRouter)', group: 'OpenRouter' },
+  { id: 'deepseek/deepseek-chat', label: 'DeepSeek Chat (OpenRouter)', group: 'OpenRouter' },
+  { id: 'mistralai/mistral-large-2407', label: 'Mistral Large (OpenRouter)', group: 'OpenRouter' },
+  { id: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet (OpenRouter)', group: 'OpenRouter' },
 ];
 
 const PRESET_SCENARIOS: Record<
@@ -145,7 +149,7 @@ const PRESET_SCENARIOS: Record<
   },
 };
 
-export function PromptTester({ apiUrl }: { apiUrl: string }) {
+export function PromptTester({ apiUrl, userApiKeys, isMaster }: { apiUrl: string; userApiKeys?: { geminiApiKey?: string; groqApiKey?: string; openrouterApiKey?: string }; isMaster?: boolean }) {
   const [mode, setMode] = useState<PromptTestMode>('same_model_diff_prompt');
 
   // Target A state
