@@ -220,7 +220,7 @@ export interface PromptTargetExecutionResult {
 }
 
 export interface JudgeEvaluationResult {
-  winner: 'target_a' | 'target_b' | 'tie';
+  winner: 'target_a' | 'target_b';
   verdict: string;
   summary: string;
   targetARating: number; // 1 to 10

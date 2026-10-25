@@ -45,7 +45,7 @@ interface PromptTargetResult {
 }
 
 interface JudgeResult {
-  winner: 'target_a' | 'target_b' | 'tie';
+  winner: 'target_a' | 'target_b';
   verdict: string;
   summary: string;
   targetARating: number;
@@ -552,11 +552,7 @@ export function PromptTester({ apiUrl }: { apiUrl: string }) {
                     <span>Target B Won</span>
                   </span>
                 )}
-                {result.judge.winner === 'tie' && (
-                  <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700">
-                    <span>Equally Matched (Tie)</span>
-                  </span>
-                )}
+
               </div>
             </div>
 
@@ -608,7 +604,7 @@ export function PromptTester({ apiUrl }: { apiUrl: string }) {
           {/* 2. Side-by-Side Outputs with Scores and Markdown */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Target A Output */}
-            <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm flex flex-col justify-between">
+            <div className={"bg-white dark:bg-zinc-950 border rounded-xl p-4 shadow-sm flex flex-col justify-between transition " + (result.judge.winner === "target_a" ? "border-blue-500/80 ring-2 ring-blue-500/20 shadow-md" : "border-zinc-200 dark:border-zinc-800")}>
               <div>
                 <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3 mb-3">
                   <div className="flex items-center space-x-2">
@@ -621,11 +617,16 @@ export function PromptTester({ apiUrl }: { apiUrl: string }) {
                   </div>
 
                   {/* Rating Badge */}
-                  <div className="flex items-center space-x-1 px-2 py-1 rounded bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900">
+                  <div className={"flex items-center space-x-1.5 px-2.5 py-1 rounded border " + (result.judge.winner === "target_a" ? "bg-blue-50 dark:bg-blue-950/60 border-blue-300 dark:border-blue-800 text-blue-900 dark:text-blue-200" : "bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400")}>
                     <Sparkles className="w-3 h-3 text-amber-500" />
-                    <span className="text-xs font-bold text-amber-700 dark:text-amber-400">
+                    <span className="text-xs font-bold font-mono">
                       {result.targetA.rating ?? 8.5} / 10
                     </span>
+                    {result.judge.winner === 'target_a' && (
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                        WINNER
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -660,7 +661,7 @@ export function PromptTester({ apiUrl }: { apiUrl: string }) {
             </div>
 
             {/* Target B Output */}
-            <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm flex flex-col justify-between">
+            <div className={"bg-white dark:bg-zinc-950 border rounded-xl p-4 shadow-sm flex flex-col justify-between transition " + (result.judge.winner === "target_b" ? "border-purple-500/80 ring-2 ring-purple-500/20 shadow-md" : "border-zinc-200 dark:border-zinc-800")}>
               <div>
                 <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 pb-3 mb-3">
                   <div className="flex items-center space-x-2">
@@ -673,11 +674,16 @@ export function PromptTester({ apiUrl }: { apiUrl: string }) {
                   </div>
 
                   {/* Rating Badge */}
-                  <div className="flex items-center space-x-1 px-2 py-1 rounded bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900">
+                  <div className={"flex items-center space-x-1.5 px-2.5 py-1 rounded border " + (result.judge.winner === "target_b" ? "bg-purple-50 dark:bg-purple-950/60 border-purple-300 dark:border-purple-800 text-purple-900 dark:text-purple-200" : "bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400")}>
                     <Sparkles className="w-3 h-3 text-amber-500" />
-                    <span className="text-xs font-bold text-amber-700 dark:text-amber-400">
+                    <span className="text-xs font-bold font-mono">
                       {result.targetB.rating ?? 8.5} / 10
                     </span>
+                    {result.judge.winner === 'target_b' && (
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400">
+                        WINNER
+                      </span>
+                    )}
                   </div>
                 </div>
 
