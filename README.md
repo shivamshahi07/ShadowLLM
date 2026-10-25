@@ -201,14 +201,4 @@ shadow-llm-proxy/
 │   └── load-test.ts        # Throughput & sub-2ms overhead benchmark
 ├── Dockerfile              # Multi-stage production container for Render
 ├── render.yaml             # Render Free Web Service deployment spec
-└── vercel.json             # Vercel frontend deployment spec
 ```
-
----
-
-## 🎓 Core System Architecture Considerations
-
-1. **Zero-Latency Stream Bifurcation**: Why intercepting LLM streams at layer 7 is hard. Explain how unbuffered chunk piping to the client decouples from downstream fire-and-forget Redis Streams without blocking the event loop.
-2. **Side-Effect Virtualization**: How autonomous agent loops can be safely evaluated in production. Explain argument diffing, classification heuristics, and replaying observed tool responses to close the reasoning loop safely.
-3. **High-Cardinality Drift Detection**: Balancing real-time token streaming with asynchronous vector cosine similarity. Why offline fallback vectorizers prevent pipeline disruption during upstream embedding outages.
-4. **Zero-Cost Production Resilience**: How a dual-engine architecture (Postgres + Redis Streams in cloud, In-Memory DB + Buffer locally) guarantees 100% testability with zero mandatory cloud spend.
