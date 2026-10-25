@@ -24,6 +24,7 @@ export async function buildServer() {
     origin: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-shadow-trace-id'],
+    exposedHeaders: ['x-shadow-trace-id', 'x-shadow-forked'],
   });
 
   // Auth Hook for /v1/* endpoints if PROXY_AUTH_TOKEN is configured

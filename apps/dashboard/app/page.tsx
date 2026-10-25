@@ -31,6 +31,7 @@ import {
   ShieldCheck,
   Sliders,
   Sparkles,
+  Split,
   Sun,
   Terminal,
   Users,
@@ -108,6 +109,25 @@ interface CanaryStats {
   virtualizedMutationCount: number;
 }
 
+interface PlaygroundResult {
+  traceId: string;
+  primary: {
+    model: string;
+    content: string;
+    latencyMs: number;
+    tokens: number;
+  };
+  shadow: {
+    model: string;
+    content: string | null;
+    latencyMs: number | null;
+    similarity: number | null;
+    driftWarning: boolean;
+    driftReason: string | null;
+  } | null;
+  isEvaluatingShadow: boolean;
+}
+
 // --- ACCESSIBLE METRIC EXPLANATION POPOVER ---
 function WhatsThisTooltip({ title, explanation }: { title: string; explanation: string }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -161,7 +181,7 @@ function SplashScreen({
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span>ShadowLLM Architecture Guide</span>
             </div>
-            <Tooltip content="Close guide and enter dashboard" position="bottom">
+            <Tooltip content="Close guide and enter dashboard" position="bottom" align="right">
               <button
                 onClick={onDismiss}
                 className="p-1 rounded-md text-zinc-400 hover:text-zinc-800 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition"
@@ -282,7 +302,7 @@ function SplashScreen({
             <span>Don't show this splash screen automatically next time</span>
           </label>
 
-          <Tooltip content="Confirm and enter the live telemetry dashboard">
+          <Tooltip content="Confirm and enter the live telemetry dashboard" align="right">
             <button
               onClick={onDismiss}
               className="w-full sm:w-auto flex items-center justify-center space-x-2 px-6 py-2.5 rounded-lg bg-black hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-black font-medium text-xs tracking-tight transition active:scale-95 shadow-sm"
@@ -322,7 +342,7 @@ export default function CanaryDashboard() {
     'Explain the difference between optimistic concurrency and pessimistic locking in distributed databases, with 2 short code bullet points.'
   );
   const [isSendingTest, setIsSendingTest] = useState<boolean>(false);
-  const [testResponse, setTestResponse] = useState<string | null>(null);
+  const [playgroundResult, setPlaygroundResult] = useState<PlaygroundResult | null>(null);
 
   // Splash Screen State
   const [showSplash, setShowSplash] = useState<boolean>(false);
@@ -442,10 +462,61 @@ export default function CanaryDashboard() {
     }
   };
 
+  // Poll for background shadow model execution completion
+  const pollForShadowExecution = async (traceId: string) => {
+    let attempts = 0;
+    const maxAttempts = 15; // up to ~12 seconds
+
+    const poll = async () => {
+      attempts++;
+      try {
+        const traceRes = await fetch(`${apiUrl}/api/v1/canary/traces/${traceId}`);
+        if (traceRes.ok) {
+          const data = await traceRes.json();
+          const trace = data.trace;
+          if (trace && (trace.shadow_response_text || trace.semantic_similarity !== null)) {
+            setPlaygroundResult((prev) => {
+              if (!prev || prev.traceId !== traceId) return prev;
+              return {
+                ...prev,
+                isEvaluatingShadow: false,
+                shadow: {
+                  model: trace.shadow_model || config?.shadow_model || 'openai/gpt-oss-120b',
+                  content: trace.shadow_response_text || 'Tool call executed',
+                  latencyMs: trace.shadow_latency_ms,
+                  similarity: trace.semantic_similarity,
+                  driftWarning: trace.has_drift_warning,
+                  driftReason: trace.drift_reason,
+                },
+              };
+            });
+            await fetchData();
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Error polling trace status:', err);
+      }
+
+      if (attempts < maxAttempts) {
+        setTimeout(poll, 800);
+      } else {
+        setPlaygroundResult((prev) => {
+          if (!prev || prev.traceId !== traceId) return prev;
+          return { ...prev, isEvaluatingShadow: false };
+        });
+      }
+    };
+
+    setTimeout(poll, 600);
+  };
+
   const handleSendTestRequest = async () => {
     if (!testPrompt.trim() || isSendingTest) return;
     setIsSendingTest(true);
-    setTestResponse(null);
+    setPlaygroundResult(null);
+
+    const startTime = Date.now();
     try {
       const res = await fetch(`${apiUrl}/v1/chat/completions`, {
         method: 'POST',
@@ -460,17 +531,54 @@ export default function CanaryDashboard() {
         }),
       });
 
+      const primaryLatencyMs = Date.now() - startTime;
+      const traceId = res.headers.get('x-shadow-trace-id') || `trc_${Date.now()}`;
+
       if (res.ok) {
         const data = await res.json();
         const text = data.choices?.[0]?.message?.content || JSON.stringify(data, null, 2);
-        setTestResponse(text);
+
+        setPlaygroundResult({
+          traceId,
+          primary: {
+            model: data.model || config?.primary_model || 'gemini-3.5-flash',
+            content: text,
+            latencyMs: primaryLatencyMs,
+            tokens: data.usage?.total_tokens || Math.round(text.length / 4),
+          },
+          shadow: null,
+          isEvaluatingShadow: true,
+        });
+
+        // Start background polling for the shadow model response
+        pollForShadowExecution(traceId);
         await fetchData();
       } else {
         const errText = await res.text();
-        setTestResponse(`Error (${res.status}): ${errText}`);
+        setPlaygroundResult({
+          traceId,
+          primary: {
+            model: config?.primary_model || 'gemini-3.5-flash',
+            content: `Error (${res.status}): ${errText}`,
+            latencyMs: primaryLatencyMs,
+            tokens: 0,
+          },
+          shadow: null,
+          isEvaluatingShadow: false,
+        });
       }
     } catch (err: any) {
-      setTestResponse(`Network error: ${err.message}`);
+      setPlaygroundResult({
+        traceId: 'error',
+        primary: {
+          model: config?.primary_model || 'gemini-3.5-flash',
+          content: `Network error: ${err.message}`,
+          latencyMs: 0,
+          tokens: 0,
+        },
+        shadow: null,
+        isEvaluatingShadow: false,
+      });
     } finally {
       setIsSendingTest(false);
     }
@@ -498,7 +606,7 @@ export default function CanaryDashboard() {
   }, [traces, filterDrift, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-black text-zinc-900 dark:text-zinc-100 font-sans selection:bg-zinc-200 dark:selection:bg-zinc-800">
+    <div className="min-h-screen bg-zinc-50 dark:bg-black text-zinc-900 dark:text-zinc-100 font-sans selection:bg-zinc-200 dark:selection:bg-zinc-800 overflow-x-hidden">
       {/* Concept Splash Screen Modal */}
       {showSplash && (
         <SplashScreen
@@ -512,12 +620,10 @@ export default function CanaryDashboard() {
       <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-black/90 backdrop-blur sticky top-0 z-40 px-6 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-3 sm:space-x-4">
-            {/* Geometric Logo */}
+            {/* Custom ShadowLLM Traffic Bifurcation Logo */}
             <div className="flex items-center space-x-2.5">
-              <div className="w-5 h-5 flex items-center justify-center">
-                <svg viewBox="0 0 76 65" fill="none" className="w-4 h-4 text-black dark:text-white">
-                  <path d="M37.5274 0L75.0548 65H0L37.5274 0Z" fill="currentColor" />
-                </svg>
+              <div className="w-7 h-7 rounded-lg bg-black text-white dark:bg-white dark:text-black flex items-center justify-center shadow-sm">
+                <Split className="w-4 h-4 rotate-90" />
               </div>
               <span className="font-semibold text-sm tracking-tight text-zinc-950 dark:text-white">
                 ShadowLLM
@@ -575,7 +681,7 @@ export default function CanaryDashboard() {
             </Tooltip>
 
             {/* Promote to Production Button */}
-            <Tooltip content="Promote shadow model (Groq) to become the primary production LLM" position="bottom">
+            <Tooltip content="Promote shadow model (Groq) to become the primary production LLM" position="bottom" align="right">
               <button
                 onClick={handlePromote}
                 disabled={isPromoting || config?.primary_model === config?.shadow_model}
@@ -682,7 +788,7 @@ export default function CanaryDashboard() {
               <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>{promoteSuccess}</span>
             </div>
-            <Tooltip content="Dismiss notification">
+            <Tooltip content="Dismiss notification" align="right">
               <button onClick={() => setPromoteSuccess(null)} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-white">
                 <X className="w-4 h-4" />
               </button>
@@ -1266,17 +1372,17 @@ export default function CanaryDashboard() {
           </section>
         )}
 
-        {/* --- TAB 4: INTERACTIVE PLAYGROUND --- */}
+        {/* --- TAB 4: INTERACTIVE PLAYGROUND (PRIMARY + SHADOW SIDE-BY-SIDE EVALUATION) --- */}
         {activeTab === 'playground' && (
           <section className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 space-y-5 shadow-sm animate-in fade-in duration-150">
-            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3 gap-2">
               <div>
                 <h2 className="text-base font-semibold text-zinc-950 dark:text-white flex items-center space-x-2">
                   <Send className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span>Interactive Live Bifurcation Playground</span>
                 </h2>
                 <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
-                  Send a live prompt through the ShadowLLM Gateway (<code className="text-zinc-900 dark:text-zinc-200 font-mono">http://localhost:8080/v1/chat/completions</code>) and watch both primary and shadow models respond in real time.
+                  Send a live request through the proxy gateway (<code className="text-zinc-900 dark:text-zinc-200 font-mono">http://localhost:8080/v1/chat/completions</code>). Gemini responds immediately to your client, while Groq OSS 120B is evaluated in the background.
                 </p>
               </div>
               <div className="text-xs font-mono text-zinc-500">
@@ -1329,7 +1435,7 @@ export default function CanaryDashboard() {
                 <span className="text-[11px] font-mono text-zinc-500">
                   Target: {config?.primary_model || 'gemini-3.5-flash'} (Primary) + {config?.shadow_model || 'openai/gpt-oss-120b'} (Shadow Queue)
                 </span>
-                <Tooltip content="Dispatch prompt to proxy gateway, stream primary response, and queue shadow clone">
+                <Tooltip content="Send prompt through proxy gateway, stream primary response, and evaluate shadow model" align="right">
                   <button
                     onClick={handleSendTestRequest}
                     disabled={isSendingTest || !testPrompt.trim()}
@@ -1342,15 +1448,106 @@ export default function CanaryDashboard() {
               </div>
             </div>
 
-            {/* Live Response Box */}
-            {testResponse && (
-              <div className="border-t border-zinc-200 dark:border-zinc-800 pt-4">
-                <div className="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 mb-2 flex items-center justify-between">
-                  <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Primary Model Stream Result:</span>
-                  <span className="text-zinc-400">Rendered with Markdown</span>
+            {/* Live Dual Response Comparison Box */}
+            {playgroundResult && (
+              <div className="border-t border-zinc-200 dark:border-zinc-800 pt-5 space-y-4">
+                {/* Comparative Analytics Banner */}
+                <div className="p-3 bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-zinc-500">Trace:</span>
+                    <span className="text-zinc-900 dark:text-white font-semibold">{playgroundResult.traceId}</span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    {playgroundResult.shadow?.latencyMs && (
+                      <span className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 font-semibold border border-emerald-200 dark:border-emerald-800/50">
+                        ⚡ {playgroundResult.shadow.latencyMs}ms vs {playgroundResult.primary.latencyMs}ms
+                        {playgroundResult.primary.latencyMs > playgroundResult.shadow.latencyMs && (
+                          <span> ({Math.round(((playgroundResult.primary.latencyMs - playgroundResult.shadow.latencyMs) / playgroundResult.primary.latencyMs) * 100)}% faster)</span>
+                        )}
+                      </span>
+                    )}
+
+                    {playgroundResult.shadow?.similarity !== null && playgroundResult.shadow?.similarity !== undefined && (
+                      <span className={`px-2 py-0.5 rounded font-semibold border ${
+                        playgroundResult.shadow.similarity >= (config?.drift_alert_threshold || 0.85)
+                          ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50'
+                          : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/50'
+                      }`}>
+                        Cosine Similarity: {playgroundResult.shadow.similarity.toFixed(3)}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="p-4 bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200 dark:border-zinc-800 rounded-lg">
-                  <MarkdownRenderer content={testResponse} />
+
+                {/* Side-by-Side Model Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Primary Model Stream Result */}
+                  <div className="bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between text-xs font-mono mb-2 pb-2 border-b border-zinc-200 dark:border-zinc-800">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="w-2 h-2 rounded-full bg-zinc-400" />
+                          <span className="text-zinc-950 dark:text-zinc-200 font-semibold">
+                            {playgroundResult.primary.model} (Primary)
+                          </span>
+                        </div>
+                        <span className="text-zinc-500 font-mono">{playgroundResult.primary.latencyMs}ms</span>
+                      </div>
+
+                      <div className="text-xs text-zinc-800 dark:text-zinc-300 leading-relaxed">
+                        <MarkdownRenderer content={playgroundResult.primary.content} />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-2 border-t border-zinc-200 dark:border-zinc-800 text-[10px] font-mono text-zinc-500 flex justify-between">
+                      <span>Streamed to Client (&lt;2ms proxy overhead)</span>
+                      <span>{playgroundResult.primary.tokens} tokens</span>
+                    </div>
+                  </div>
+
+                  {/* Shadow Model Async Evaluation Result */}
+                  <div className="bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between text-xs font-mono mb-2 pb-2 border-b border-zinc-200 dark:border-zinc-800">
+                        <div className="flex items-center space-x-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
+                            {playgroundResult.shadow?.model || config?.shadow_model || 'openai/gpt-oss-120b'} (Shadow)
+                          </span>
+                        </div>
+                        <span className="text-emerald-700 dark:text-emerald-400 font-mono">
+                          {playgroundResult.shadow?.latencyMs ? `${playgroundResult.shadow.latencyMs}ms` : 'Queued'}
+                        </span>
+                      </div>
+
+                      {playgroundResult.isEvaluatingShadow ? (
+                        <div className="p-8 flex flex-col items-center justify-center space-y-2 text-center text-xs text-zinc-500 font-mono">
+                          <RefreshCw className="w-5 h-5 animate-spin text-emerald-600 dark:text-emerald-400" />
+                          <span className="text-zinc-700 dark:text-zinc-300 font-medium">Asynchronously evaluating on Groq OSS 120B...</span>
+                          <span className="text-[11px] text-zinc-400">Embedding vector comparison running on Redis worker</span>
+                        </div>
+                      ) : playgroundResult.shadow?.content ? (
+                        <div className="text-xs text-zinc-800 dark:text-zinc-300 leading-relaxed">
+                          {playgroundResult.shadow.driftWarning && (
+                            <div className="mb-2 p-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded text-amber-800 dark:text-amber-400 text-[11px]">
+                              ⚠️ <strong>Drift Warning:</strong> {playgroundResult.shadow.driftReason || 'Cosine similarity below threshold.'}
+                            </div>
+                          )}
+                          <MarkdownRenderer content={playgroundResult.shadow.content} />
+                        </div>
+                      ) : (
+                        <div className="p-6 text-center text-xs text-zinc-500 font-mono">
+                          Shadow evaluation completed with tool intent recorded.
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-4 pt-2 border-t border-zinc-200 dark:border-zinc-800 text-[10px] font-mono text-zinc-500 flex justify-between">
+                      <span className="text-emerald-600 dark:text-emerald-400">Background Evaluated</span>
+                      <span>Zero live user latency</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -1527,7 +1724,7 @@ export default function CanaryDashboard() {
                 </div>
               </div>
 
-              <Tooltip content="Persist new bifurcation rate and drift alert threshold to Neon DB">
+              <Tooltip content="Persist new bifurcation rate and drift alert threshold to Neon DB" align="left">
                 <button
                   type="submit"
                   disabled={isUpdatingConfig}
