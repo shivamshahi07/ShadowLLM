@@ -812,7 +812,10 @@ export default function CanaryDashboard() {
 
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-6 py-6 space-y-6">
-        {/* --- 4 PRIMARY METRIC CARDS --- */}
+        {/* --- TAB 1: OVERVIEW & TELEMETRY --- */}
+        {activeTab === 'overview' && (
+          <section className="space-y-6 animate-in fade-in duration-150">
+{/* --- 4 PRIMARY METRIC CARDS --- */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1: Cost Savings */}
           <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 hover:border-zinc-300 dark:hover:border-zinc-700 transition shadow-sm">
@@ -923,9 +926,6 @@ export default function CanaryDashboard() {
           </div>
         </section>
 
-        {/* --- TAB 1: OVERVIEW & TELEMETRY --- */}
-        {activeTab === 'overview' && (
-          <section className="space-y-6 animate-in fade-in duration-150">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Radar Quality & Fidelity Spectrum */}
               <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 lg:col-span-2 flex flex-col justify-between shadow-sm">
@@ -1382,6 +1382,13 @@ export default function CanaryDashboard() {
                 ))}
               </div>
             )}
+          </section>
+        )}
+
+        {/* --- TAB: PROMPT TESTER & JUDGE --- */}
+        {activeTab === 'prompttester' && (
+          <section className="animate-in fade-in duration-150">
+            <PromptTester apiUrl={apiUrl} />
           </section>
         )}
 
