@@ -36,6 +36,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { MarkdownRenderer } from '../components/MarkdownRenderer';
+import { Tooltip } from '../components/Tooltip';
 
 // --- DATA TYPES ---
 interface CanaryConfig {
@@ -105,7 +106,7 @@ interface CanaryStats {
   virtualizedMutationCount: number;
 }
 
-// --- VERCEL-STYLE ACCESSIBLE TOOLTIP ---
+// --- VERCEL-STYLE ACCESSIBLE METRIC EXPLANATION POPOVER ---
 function WhatsThisTooltip({ title, explanation }: { title: string; explanation: string }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -158,13 +159,14 @@ function SplashScreen({
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span>ShadowLLM Architecture Guide</span>
             </div>
-            <button
-              onClick={onDismiss}
-              className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
-              title="Close and Enter Dashboard"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <Tooltip content="Close guide and enter dashboard" position="bottom">
+              <button
+                onClick={onDismiss}
+                className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </Tooltip>
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white mb-3">
@@ -278,13 +280,15 @@ function SplashScreen({
             <span>Don't show this splash screen automatically next time</span>
           </label>
 
-          <button
-            onClick={onDismiss}
-            className="w-full sm:w-auto flex items-center justify-center space-x-2 px-6 py-2.5 rounded-lg bg-white hover:bg-zinc-200 text-black font-medium text-xs tracking-tight transition active:scale-95 shadow-md shadow-white/5"
-          >
-            <span>Go Ahead — Enter Dashboard</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
+          <Tooltip content="Confirm and enter the live telemetry dashboard">
+            <button
+              onClick={onDismiss}
+              className="w-full sm:w-auto flex items-center justify-center space-x-2 px-6 py-2.5 rounded-lg bg-white hover:bg-zinc-200 text-black font-medium text-xs tracking-tight transition active:scale-95 shadow-md shadow-white/5"
+            >
+              <span>Go Ahead — Enter Dashboard</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </Tooltip>
         </div>
       </div>
     </div>
@@ -510,35 +514,38 @@ export default function CanaryDashboard() {
 
           <div className="flex items-center space-x-2 sm:space-x-3">
             {/* Concept / How it Works Button */}
-            <button
-              onClick={() => setShowSplash(true)}
-              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-md border border-zinc-800 bg-zinc-950 hover:bg-zinc-900 text-xs text-zinc-300 hover:text-white transition"
-              title="Read Concept in Plain English"
-            >
-              <HelpCircle className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">How it Works</span>
-            </button>
+            <Tooltip content="Re-open the plain-English architecture guide & concept tour" position="bottom">
+              <button
+                onClick={() => setShowSplash(true)}
+                className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-md border border-zinc-800 bg-zinc-950 hover:bg-zinc-900 text-xs text-zinc-300 hover:text-white transition"
+              >
+                <HelpCircle className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">How it Works</span>
+              </button>
+            </Tooltip>
 
             {/* Refresh Button */}
-            <button
-              onClick={fetchData}
-              disabled={isLoading}
-              className="p-1.5 rounded-md border border-zinc-800 bg-zinc-950 hover:bg-zinc-900 text-zinc-400 hover:text-white transition"
-              title="Refresh Telemetry"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            </button>
+            <Tooltip content="Fetch latest execution traces, stats, and evaluations from Neon DB" position="bottom">
+              <button
+                onClick={fetchData}
+                disabled={isLoading}
+                className="p-1.5 rounded-md border border-zinc-800 bg-zinc-950 hover:bg-zinc-900 text-zinc-400 hover:text-white transition"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </Tooltip>
 
             {/* Promote to Production Button */}
-            <button
-              onClick={handlePromote}
-              disabled={isPromoting || config?.primary_model === config?.shadow_model}
-              className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-md text-xs font-medium transition bg-white hover:bg-zinc-200 text-black active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-              title="Promote shadow model to production primary"
-            >
-              <Zap className="w-3.5 h-3.5 fill-current" />
-              <span>{isPromoting ? 'Promoting...' : 'Promote Shadow'}</span>
-            </button>
+            <Tooltip content="Promote shadow model (Groq) to become the primary production LLM" position="bottom">
+              <button
+                onClick={handlePromote}
+                disabled={isPromoting || config?.primary_model === config?.shadow_model}
+                className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-md text-xs font-medium transition bg-white hover:bg-zinc-200 text-black active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              >
+                <Zap className="w-3.5 h-3.5 fill-current" />
+                <span>{isPromoting ? 'Promoting...' : 'Promote Shadow'}</span>
+              </button>
+            </Tooltip>
           </div>
         </div>
       </header>
@@ -546,68 +553,85 @@ export default function CanaryDashboard() {
       {/* Navigation Sub-Tabs */}
       <div className="border-b border-zinc-800 bg-zinc-950 px-6">
         <div className="max-w-7xl mx-auto flex items-center space-x-6 text-xs font-medium overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`py-3 border-b-2 whitespace-nowrap transition ${
-              activeTab === 'overview'
-                ? 'border-white text-white'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Overview & Telemetry
-          </button>
-          <button
-            onClick={() => setActiveTab('traces')}
-            className={`py-3 border-b-2 whitespace-nowrap transition ${
-              activeTab === 'traces'
-                ? 'border-white text-white'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Execution Traces ({traces.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('sandbox')}
-            className={`py-3 border-b-2 whitespace-nowrap transition ${
-              activeTab === 'sandbox'
-                ? 'border-white text-white'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Side-Effect Sandbox ({mutations.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('playground')}
-            className={`py-3 border-b-2 whitespace-nowrap transition flex items-center space-x-1.5 ${
-              activeTab === 'playground'
-                ? 'border-white text-white'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Send className="w-3 h-3 text-emerald-400" />
-            <span>Interactive Playground</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('multiuser')}
-            className={`py-3 border-b-2 whitespace-nowrap transition flex items-center space-x-1.5 ${
-              activeTab === 'multiuser'
-                ? 'border-white text-white'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            <Users className="w-3 h-3" />
-            <span>Multi-User Architecture</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('config')}
-            className={`py-3 border-b-2 whitespace-nowrap transition ${
-              activeTab === 'config'
-                ? 'border-white text-white'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Canary Routing Rules
-          </button>
+          <Tooltip content="View live cost reduction, P95 speedup, and quality radar metrics">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`py-3 border-b-2 whitespace-nowrap transition ${
+                activeTab === 'overview'
+                  ? 'border-white text-white'
+                  : 'border-transparent text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              Overview & Telemetry
+            </button>
+          </Tooltip>
+
+          <Tooltip content="Inspect individual requests, model prompt diffs, and drift evaluations">
+            <button
+              onClick={() => setActiveTab('traces')}
+              className={`py-3 border-b-2 whitespace-nowrap transition ${
+                activeTab === 'traces'
+                  ? 'border-white text-white'
+                  : 'border-transparent text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              Execution Traces ({traces.length})
+            </button>
+          </Tooltip>
+
+          <Tooltip content="View intercepted state-mutating tool calls (replayed or mocked to prevent duplicate writes)">
+            <button
+              onClick={() => setActiveTab('sandbox')}
+              className={`py-3 border-b-2 whitespace-nowrap transition ${
+                activeTab === 'sandbox'
+                  ? 'border-white text-white'
+                  : 'border-transparent text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              Side-Effect Sandbox ({mutations.length})
+            </button>
+          </Tooltip>
+
+          <Tooltip content="Send live test prompts through the gateway and observe real-time bifurcation">
+            <button
+              onClick={() => setActiveTab('playground')}
+              className={`py-3 border-b-2 whitespace-nowrap transition flex items-center space-x-1.5 ${
+                activeTab === 'playground'
+                  ? 'border-white text-white'
+                  : 'border-transparent text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Send className="w-3 h-3 text-emerald-400" />
+              <span>Interactive Playground</span>
+            </button>
+          </Tooltip>
+
+          <Tooltip content="Learn how ShadowLLM scales horizontally for multiple concurrent users and teams">
+            <button
+              onClick={() => setActiveTab('multiuser')}
+              className={`py-3 border-b-2 whitespace-nowrap transition flex items-center space-x-1.5 ${
+                activeTab === 'multiuser'
+                  ? 'border-white text-white'
+                  : 'border-transparent text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Users className="w-3 h-3" />
+              <span>Multi-User Architecture</span>
+            </button>
+          </Tooltip>
+
+          <Tooltip content="Configure traffic bifurcation sample rates and drift alert sensitivity">
+            <button
+              onClick={() => setActiveTab('config')}
+              className={`py-3 border-b-2 whitespace-nowrap transition ${
+                activeTab === 'config'
+                  ? 'border-white text-white'
+                  : 'border-transparent text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              Canary Routing Rules
+            </button>
+          </Tooltip>
         </div>
       </div>
 
@@ -619,9 +643,11 @@ export default function CanaryDashboard() {
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
               <span>{promoteSuccess}</span>
             </div>
-            <button onClick={() => setPromoteSuccess(null)} className="text-zinc-500 hover:text-white">
-              <X className="w-4 h-4" />
-            </button>
+            <Tooltip content="Dismiss notification">
+              <button onClick={() => setPromoteSuccess(null)} className="text-zinc-500 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </Tooltip>
           </div>
         </div>
       )}
@@ -760,24 +786,32 @@ export default function CanaryDashboard() {
             {/* Presets */}
             <div className="flex items-center space-x-2 text-xs">
               <span className="text-zinc-500 font-mono">Prompt Presets:</span>
-              <button
-                onClick={() => setTestPrompt('Explain quantum superposition in 2 short bullet points.')}
-                className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 transition"
-              >
-                Quantum Physics
-              </button>
-              <button
-                onClick={() => setTestPrompt('Write a TypeScript generic utility type NonNullableDeep<T> with a concise explanation.')}
-                className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 transition"
-              >
-                TypeScript Generic
-              </button>
-              <button
-                onClick={() => setTestPrompt('Execute payout of $450 to partner usr_8812 for affiliate marketing commission.')}
-                className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 transition"
-              >
-                Financial Mutation Tool
-              </button>
+              <Tooltip content="Populate with a quantum physics bullet comparison prompt">
+                <button
+                  onClick={() => setTestPrompt('Explain quantum superposition in 2 short bullet points.')}
+                  className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 transition"
+                >
+                  Quantum Physics
+                </button>
+              </Tooltip>
+
+              <Tooltip content="Populate with a complex TypeScript type programming prompt">
+                <button
+                  onClick={() => setTestPrompt('Write a TypeScript generic utility type NonNullableDeep<T> with a concise explanation.')}
+                  className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 transition"
+                >
+                  TypeScript Generic
+                </button>
+              </Tooltip>
+
+              <Tooltip content="Populate with a financial tool call that triggers sandbox side-effect virtualization">
+                <button
+                  onClick={() => setTestPrompt('Execute payout of $450 to partner usr_8812 for affiliate marketing commission.')}
+                  className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 transition"
+                >
+                  Financial Mutation Tool
+                </button>
+              </Tooltip>
             </div>
 
             {/* Input Form */}
@@ -794,14 +828,16 @@ export default function CanaryDashboard() {
                 <span className="text-[11px] font-mono text-zinc-500">
                   Target: {config?.primary_model || 'gemini-3.5-flash'} (Primary) + {config?.shadow_model || 'openai/gpt-oss-120b'} (Shadow Queue)
                 </span>
-                <button
-                  onClick={handleSendTestRequest}
-                  disabled={isSendingTest || !testPrompt.trim()}
-                  className="flex items-center space-x-2 px-5 py-2 rounded-lg bg-white hover:bg-zinc-200 text-black font-medium text-xs transition active:scale-95 disabled:opacity-50"
-                >
-                  <Send className={`w-3.5 h-3.5 ${isSendingTest ? 'animate-pulse' : ''}`} />
-                  <span>{isSendingTest ? 'Bifurcating Request...' : 'Send Live Request'}</span>
-                </button>
+                <Tooltip content="Dispatch prompt to proxy gateway, stream primary response, and queue shadow clone">
+                  <button
+                    onClick={handleSendTestRequest}
+                    disabled={isSendingTest || !testPrompt.trim()}
+                    className="flex items-center space-x-2 px-5 py-2 rounded-lg bg-white hover:bg-zinc-200 text-black font-medium text-xs transition active:scale-95 disabled:opacity-50"
+                  >
+                    <Send className={`w-3.5 h-3.5 ${isSendingTest ? 'animate-pulse' : ''}`} />
+                    <span>{isSendingTest ? 'Bifurcating Request...' : 'Send Live Request'}</span>
+                  </button>
+                </Tooltip>
               </div>
             </div>
 
@@ -993,13 +1029,15 @@ export default function CanaryDashboard() {
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={isUpdatingConfig}
-                  className="w-full py-2 px-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg text-xs font-medium text-white transition active:scale-98 disabled:opacity-50"
-                >
-                  {isUpdatingConfig ? 'Updating...' : 'Save Canary Config'}
-                </button>
+                <Tooltip content="Persist new bifurcation rate and drift alert threshold to Neon DB" className="w-full">
+                  <button
+                    type="submit"
+                    disabled={isUpdatingConfig}
+                    className="w-full py-2 px-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg text-xs font-medium text-white transition active:scale-98 disabled:opacity-50"
+                  >
+                    {isUpdatingConfig ? 'Updating...' : 'Save Canary Config'}
+                  </button>
+                </Tooltip>
               </form>
             </div>
 
@@ -1122,17 +1160,19 @@ export default function CanaryDashboard() {
                 />
               </div>
 
-              <button
-                onClick={() => setFilterDrift(!filterDrift)}
-                className={`px-3 py-1.5 rounded-lg border text-xs font-mono transition flex items-center space-x-1.5 shrink-0 ${
-                  filterDrift
-                    ? 'bg-amber-950/40 border-amber-800/60 text-amber-400'
-                    : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                <AlertTriangle className="w-3 h-3" />
-                <span>Drift Only</span>
-              </button>
+              <Tooltip content="Show only traces where semantic similarity breached the alert threshold">
+                <button
+                  onClick={() => setFilterDrift(!filterDrift)}
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-mono transition flex items-center space-x-1.5 shrink-0 ${
+                    filterDrift
+                      ? 'bg-amber-950/40 border-amber-800/60 text-amber-400'
+                      : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                  }`}
+                >
+                  <AlertTriangle className="w-3 h-3" />
+                  <span>Drift Only</span>
+                </button>
+              </Tooltip>
             </div>
 
             <div className="flex items-center space-x-2 text-xs font-mono text-zinc-400">
