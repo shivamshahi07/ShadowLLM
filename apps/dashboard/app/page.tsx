@@ -18,19 +18,24 @@ import {
   Info,
   Layers,
   Lock,
+  Network,
   Play,
   RefreshCw,
   Search,
+  Send,
   Server,
+  Share2,
   Shield,
   ShieldAlert,
   ShieldCheck,
   Sliders,
   Sparkles,
   Terminal,
+  Users,
   X,
   Zap,
 } from 'lucide-react';
+import { MarkdownRenderer } from '../components/MarkdownRenderer';
 
 // --- DATA TYPES ---
 interface CanaryConfig {
@@ -100,7 +105,7 @@ interface CanaryStats {
   virtualizedMutationCount: number;
 }
 
-// --- VERCEL-STYLE TOOLTIP COMPONENT ---
+// --- VERCEL-STYLE ACCESSIBLE TOOLTIP ---
 function WhatsThisTooltip({ title, explanation }: { title: string; explanation: string }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -113,19 +118,19 @@ function WhatsThisTooltip({ title, explanation }: { title: string; explanation: 
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="text-zinc-500 hover:text-zinc-300 transition-colors p-0.5 rounded focus:outline-none"
+        className="text-zinc-500 hover:text-zinc-200 transition-colors p-0.5 rounded focus:outline-none"
         aria-label={`What is ${title}?`}
       >
         <HelpCircle className="w-3.5 h-3.5" />
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-zinc-900 border border-zinc-700/80 rounded-lg shadow-2xl text-xs text-zinc-300 z-50 pointer-events-none transition-all duration-150 backdrop-blur-md">
-          <div className="flex items-center space-x-1.5 font-medium text-white mb-1">
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl text-xs text-zinc-300 z-50 pointer-events-none transition-all duration-150 backdrop-blur-md">
+          <div className="flex items-center space-x-1.5 font-medium text-white mb-1.5 border-b border-zinc-800 pb-1">
             <Info className="w-3.5 h-3.5 text-zinc-400" />
             <span>What's this? — {title}</span>
           </div>
-          <p className="leading-relaxed text-zinc-400">{explanation}</p>
+          <p className="leading-relaxed text-zinc-300">{explanation}</p>
           <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-zinc-900" />
         </div>
       )}
@@ -184,7 +189,7 @@ function SplashScreen({
                   <span>Traffic Bifurcation</span>
                 </h3>
                 <p className="text-xs text-zinc-400 leading-relaxed">
-                  Real users call your API. The response streams back instantly (&lt;2ms proxy overhead). A shadow clone is quietly fired into a background queue.
+                  Real users call your API. The response streams back instantly (&lt;2ms proxy overhead). A shadow clone is quietly dispatched to an asynchronous queue.
                 </p>
               </div>
               <div className="mt-4 pt-3 border-t border-zinc-800/60 text-[11px] font-mono text-zinc-500">
@@ -203,7 +208,7 @@ function SplashScreen({
                   <span>Virtual Sandbox</span>
                 </h3>
                 <p className="text-xs text-zinc-400 leading-relaxed">
-                  If the shadow model tries to charge a credit card, refund an order, or delete a record, the sandbox catches it and dry-runs it. <strong>Zero duplicate real-world writes.</strong>
+                  If the shadow model tries to charge a card or execute a payout, the sandbox intercepts and dry-runs it. <strong>Zero duplicate customer charges.</strong>
                 </p>
               </div>
               <div className="mt-4 pt-3 border-t border-zinc-800/60 text-[11px] font-mono text-emerald-500/80">
@@ -222,7 +227,7 @@ function SplashScreen({
                   <span>Drift Radar</span>
                 </h3>
                 <p className="text-xs text-zinc-400 leading-relaxed">
-                  Mathematical vector embeddings score semantic similarity in dense space. If quality drops or tool schemas deviate, you get an immediate drift alert.
+                  Vector embeddings evaluate semantic similarity in dense space. If quality drops or tool schemas deviate, you get an immediate drift alert.
                 </p>
               </div>
               <div className="mt-4 pt-3 border-t border-zinc-800/60 text-[11px] font-mono text-zinc-500">
@@ -286,7 +291,7 @@ function SplashScreen({
   );
 }
 
-// --- MAIN CANARY DASHBOARD PAGE ---
+// --- MAIN CANARY DASHBOARD COMPONENT ---
 export default function CanaryDashboard() {
   const [stats, setStats] = useState<CanaryStats | null>(null);
   const [config, setConfig] = useState<CanaryConfig | null>(null);
@@ -301,7 +306,14 @@ export default function CanaryDashboard() {
   const [configDriftThreshold, setConfigDriftThreshold] = useState<number>(0.85);
   const [isUpdatingConfig, setIsUpdatingConfig] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'traces' | 'sandbox' | 'config'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'traces' | 'sandbox' | 'config' | 'playground' | 'multiuser'>('overview');
+
+  // Test Request Playground State
+  const [testPrompt, setTestPrompt] = useState<string>(
+    'Explain the difference between optimistic concurrency and pessimistic locking in distributed databases, with 2 short code bullet points.'
+  );
+  const [isSendingTest, setIsSendingTest] = useState<boolean>(false);
+  const [testResponse, setTestResponse] = useState<string | null>(null);
 
   // Splash Screen State
   const [showSplash, setShowSplash] = useState<boolean>(false);
@@ -309,7 +321,6 @@ export default function CanaryDashboard() {
 
   const apiUrl = process.env.NEXT_PUBLIC_PROXY_API_URL || 'http://localhost:8080';
 
-  // Check localStorage for splash preference on mount
   useEffect(() => {
     const dismissed = localStorage.getItem('shadow_dismiss_splash') === 'true';
     if (!dismissed) {
@@ -398,6 +409,41 @@ export default function CanaryDashboard() {
       console.error('Failed to update canary config:', err);
     } finally {
       setIsUpdatingConfig(false);
+    }
+  };
+
+  const handleSendTestRequest = async () => {
+    if (!testPrompt.trim() || isSendingTest) return;
+    setIsSendingTest(true);
+    setTestResponse(null);
+    try {
+      const res = await fetch(`${apiUrl}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer shadow_live_sec_8f9024ab7cd31e5f',
+        },
+        body: JSON.stringify({
+          model: config?.primary_model || 'gemini-3.5-flash',
+          messages: [{ role: 'user', content: testPrompt }],
+          temperature: 0.3,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const text = data.choices?.[0]?.message?.content || JSON.stringify(data, null, 2);
+        setTestResponse(text);
+        // Refresh traces immediately and select the new trace
+        await fetchData();
+      } else {
+        const errText = await res.text();
+        setTestResponse(`Error (${res.status}): ${errText}`);
+      }
+    } catch (err: any) {
+      setTestResponse(`Network error: ${err.message}`);
+    } finally {
+      setIsSendingTest(false);
     }
   };
 
@@ -499,10 +545,10 @@ export default function CanaryDashboard() {
 
       {/* Navigation Sub-Tabs */}
       <div className="border-b border-zinc-800 bg-zinc-950 px-6">
-        <div className="max-w-7xl mx-auto flex items-center space-x-6 text-xs font-medium">
+        <div className="max-w-7xl mx-auto flex items-center space-x-6 text-xs font-medium overflow-x-auto">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`py-3 border-b-2 transition ${
+            className={`py-3 border-b-2 whitespace-nowrap transition ${
               activeTab === 'overview'
                 ? 'border-white text-white'
                 : 'border-transparent text-zinc-400 hover:text-zinc-200'
@@ -512,7 +558,7 @@ export default function CanaryDashboard() {
           </button>
           <button
             onClick={() => setActiveTab('traces')}
-            className={`py-3 border-b-2 transition ${
+            className={`py-3 border-b-2 whitespace-nowrap transition ${
               activeTab === 'traces'
                 ? 'border-white text-white'
                 : 'border-transparent text-zinc-400 hover:text-zinc-200'
@@ -522,7 +568,7 @@ export default function CanaryDashboard() {
           </button>
           <button
             onClick={() => setActiveTab('sandbox')}
-            className={`py-3 border-b-2 transition ${
+            className={`py-3 border-b-2 whitespace-nowrap transition ${
               activeTab === 'sandbox'
                 ? 'border-white text-white'
                 : 'border-transparent text-zinc-400 hover:text-zinc-200'
@@ -531,8 +577,30 @@ export default function CanaryDashboard() {
             Side-Effect Sandbox ({mutations.length})
           </button>
           <button
+            onClick={() => setActiveTab('playground')}
+            className={`py-3 border-b-2 whitespace-nowrap transition flex items-center space-x-1.5 ${
+              activeTab === 'playground'
+                ? 'border-white text-white'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Send className="w-3 h-3 text-emerald-400" />
+            <span>Interactive Playground</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('multiuser')}
+            className={`py-3 border-b-2 whitespace-nowrap transition flex items-center space-x-1.5 ${
+              activeTab === 'multiuser'
+                ? 'border-white text-white'
+                : 'border-transparent text-zinc-400 hover:text-zinc-200'
+            }`}
+          >
+            <Users className="w-3 h-3" />
+            <span>Multi-User Architecture</span>
+          </button>
+          <button
             onClick={() => setActiveTab('config')}
-            className={`py-3 border-b-2 transition ${
+            className={`py-3 border-b-2 whitespace-nowrap transition ${
               activeTab === 'config'
                 ? 'border-white text-white'
                 : 'border-transparent text-zinc-400 hover:text-zinc-200'
@@ -670,6 +738,180 @@ export default function CanaryDashboard() {
             </div>
           </div>
         </section>
+
+        {/* --- TAB VIEW: INTERACTIVE PLAYGROUND --- */}
+        {activeTab === 'playground' && (
+          <section className="bg-zinc-950 border border-zinc-800 rounded-xl p-6 space-y-5 animate-in fade-in duration-150">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <div>
+                <h2 className="text-base font-semibold text-white flex items-center space-x-2">
+                  <Send className="w-4 h-4 text-emerald-400" />
+                  <span>Interactive Live Bifurcation Playground</span>
+                </h2>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Send a live prompt through the ShadowLLM Gateway (<code className="text-zinc-300 font-mono">http://localhost:8080/v1/chat/completions</code>) and watch both primary and shadow models respond in real time.
+                </p>
+              </div>
+              <div className="text-xs font-mono text-zinc-500">
+                Bearer Auth: Active
+              </div>
+            </div>
+
+            {/* Presets */}
+            <div className="flex items-center space-x-2 text-xs">
+              <span className="text-zinc-500 font-mono">Prompt Presets:</span>
+              <button
+                onClick={() => setTestPrompt('Explain quantum superposition in 2 short bullet points.')}
+                className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 transition"
+              >
+                Quantum Physics
+              </button>
+              <button
+                onClick={() => setTestPrompt('Write a TypeScript generic utility type NonNullableDeep<T> with a concise explanation.')}
+                className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 transition"
+              >
+                TypeScript Generic
+              </button>
+              <button
+                onClick={() => setTestPrompt('Execute payout of $450 to partner usr_8812 for affiliate marketing commission.')}
+                className="px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 transition"
+              >
+                Financial Mutation Tool
+              </button>
+            </div>
+
+            {/* Input Form */}
+            <div className="space-y-3">
+              <textarea
+                rows={3}
+                value={testPrompt}
+                onChange={(e) => setTestPrompt(e.target.value)}
+                placeholder="Type your user prompt here..."
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-xs text-zinc-200 placeholder-zinc-500 font-mono focus:outline-none focus:border-zinc-600 leading-relaxed"
+              />
+
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-mono text-zinc-500">
+                  Target: {config?.primary_model || 'gemini-3.5-flash'} (Primary) + {config?.shadow_model || 'openai/gpt-oss-120b'} (Shadow Queue)
+                </span>
+                <button
+                  onClick={handleSendTestRequest}
+                  disabled={isSendingTest || !testPrompt.trim()}
+                  className="flex items-center space-x-2 px-5 py-2 rounded-lg bg-white hover:bg-zinc-200 text-black font-medium text-xs transition active:scale-95 disabled:opacity-50"
+                >
+                  <Send className={`w-3.5 h-3.5 ${isSendingTest ? 'animate-pulse' : ''}`} />
+                  <span>{isSendingTest ? 'Bifurcating Request...' : 'Send Live Request'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Live Response Box */}
+            {testResponse && (
+              <div className="border-t border-zinc-800 pt-4">
+                <div className="text-[11px] font-mono text-zinc-400 mb-2 flex items-center justify-between">
+                  <span className="text-emerald-400 font-semibold">Primary Model Stream Result:</span>
+                  <span className="text-zinc-500">Rendered with Markdown</span>
+                </div>
+                <div className="p-4 bg-zinc-900/60 border border-zinc-800 rounded-lg">
+                  <MarkdownRenderer content={testResponse} />
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* --- TAB VIEW: MULTI-USER & ENTERPRISE ARCHITECTURE --- */}
+        {activeTab === 'multiuser' && (
+          <section className="bg-zinc-950 border border-zinc-800 rounded-xl p-6 space-y-6 animate-in fade-in duration-150">
+            <div className="border-b border-zinc-800 pb-4">
+              <div className="inline-flex items-center space-x-2 px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-400 mb-2">
+                <Users className="w-3.5 h-3.5 text-zinc-300" />
+                <span>Multi-Tenant & Concurrent User Scaling</span>
+              </div>
+              <h2 className="text-xl font-semibold tracking-tight text-white mb-2">
+                How ShadowLLM Handles Multiple Users Concurrently
+              </h2>
+              <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed max-w-3xl">
+                In high-traffic enterprise production, hundreds or thousands of developers and end-users make requests simultaneously. Here is the architectural breakdown of how ShadowLLM ensures tenant isolation, zero latency impact, and horizontal scaling.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Feature 1 */}
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-5 space-y-2">
+                <div className="flex items-center space-x-2 text-white font-semibold text-sm">
+                  <Lock className="w-4 h-4 text-emerald-400" />
+                  <span>1. Tenant Isolation & Header Routing</span>
+                </div>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Every request carries an authorization token or custom tenant header (<code className="bg-zinc-900 px-1 py-0.5 rounded text-zinc-300 font-mono">x-tenant-id</code> or <code className="bg-zinc-900 px-1 py-0.5 rounded text-zinc-300 font-mono">x-team-id</code>). Canary routing policies (e.g. 50% sample rate, model pairs) are scoped per tenant so Team A testing Groq never interferes with Team B testing DeepSeek.
+                </p>
+              </div>
+
+              {/* Feature 2 */}
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-5 space-y-2">
+                <div className="flex items-center space-x-2 text-white font-semibold text-sm">
+                  <Zap className="w-4 h-4 text-zinc-300" />
+                  <span>2. Stateless High-Throughput Proxy</span>
+                </div>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  The Fastify gateway is completely stateless. It streams tokens directly back to each client with sub-2ms overhead. Multiple proxy containers run behind an AWS ALB or Kubernetes Ingress, scaling up to handle tens of thousands of concurrent connections.
+                </p>
+              </div>
+
+              {/* Feature 3 */}
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-5 space-y-2">
+                <div className="flex items-center space-x-2 text-white font-semibold text-sm">
+                  <Layers className="w-4 h-4 text-amber-400" />
+                  <span>3. Distributed Queue with Consumer Groups</span>
+                </div>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Traffic clones are written to Upstash Redis Streams using consumer groups (<code className="bg-zinc-900 px-1 py-0.5 rounded text-zinc-300 font-mono">XREADGROUP</code>). Multiple background worker pods consume traces in parallel. A spike in shadow requests never blocks primary live user responses.
+                </p>
+              </div>
+
+              {/* Feature 4 */}
+              <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-5 space-y-2">
+                <div className="flex items-center space-x-2 text-white font-semibold text-sm">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span>4. Idempotent Tool Sandboxing per Trace</span>
+                </div>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  Each user request generates a unique cryptographic trace ID (<code className="bg-zinc-900 px-1 py-0.5 rounded text-zinc-300 font-mono">trc_&lt;timestamp&gt;_&lt;hash&gt;</code>). Tool call mutations (payouts, refunds) are isolated per trace ID so concurrent users never cross-pollinate tool states.
+                </p>
+              </div>
+            </div>
+
+            {/* Architecture Flow Diagram */}
+            <div className="p-5 bg-black border border-zinc-800 rounded-xl space-y-3">
+              <span className="text-xs font-mono text-zinc-400 font-semibold uppercase tracking-wider">
+                Multi-User Scaled Request Pipeline
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 text-xs font-mono text-center">
+                <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg">
+                  <div className="text-white font-bold mb-1">Users 1..N</div>
+                  <div className="text-zinc-500 text-[10px]">Concurrent Clients</div>
+                </div>
+                <div className="p-3 bg-zinc-900 border border-zinc-700 rounded-lg">
+                  <div className="text-white font-bold mb-1">K8s Proxy Pods</div>
+                  <div className="text-zinc-400 text-[10px]">Stateless Fastify</div>
+                </div>
+                <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg">
+                  <div className="text-emerald-400 font-bold mb-1">Primary LLM</div>
+                  <div className="text-zinc-500 text-[10px]">&lt;2ms Streaming</div>
+                </div>
+                <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg">
+                  <div className="text-amber-400 font-bold mb-1">Redis Stream</div>
+                  <div className="text-zinc-500 text-[10px]">Consumer Group</div>
+                </div>
+                <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg">
+                  <div className="text-white font-bold mb-1">Worker Pool</div>
+                  <div className="text-zinc-500 text-[10px]">Neon DB + Eval</div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* --- MIDDLE ROW: CANARY ROUTING & QUALITY SPECTRUM --- */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -840,7 +1082,7 @@ export default function CanaryDashboard() {
               <div className="space-y-2 text-xs font-mono">
                 <div className="flex items-center justify-between p-2 rounded bg-zinc-900/60 border border-zinc-800/80">
                   <span className="text-zinc-400">Semantic Similarity:</span>
-                  <span className="text-white font-semibold">0.916 / 1.000</span>
+                  <span className="text-white font-semibold">0.893 / 1.000</span>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded bg-zinc-900/60 border border-zinc-800/80">
                   <span className="text-zinc-400">P95 Latency Reduction:</span>
@@ -848,7 +1090,7 @@ export default function CanaryDashboard() {
                 </div>
                 <div className="flex items-center justify-between p-2 rounded bg-zinc-900/60 border border-zinc-800/80">
                   <span className="text-zinc-400">Inference Cost Reduction:</span>
-                  <span className="text-emerald-400 font-semibold">+83.5% Savings</span>
+                  <span className="text-emerald-400 font-semibold">+82.9% Savings</span>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded bg-zinc-900/60 border border-zinc-800/80">
                   <span className="text-zinc-400">Tool Schema Match Rate:</span>
@@ -858,13 +1100,13 @@ export default function CanaryDashboard() {
             </div>
 
             <div className="mt-3 pt-2 border-t border-zinc-900 flex items-center justify-between text-[11px] font-mono text-zinc-500">
-              <span>Embeddings: Google AI Studio text-embedding-004</span>
+              <span>Embeddings: Google AI Studio gemini-embedding-001</span>
               <span>Queue: Upstash Redis Streams</span>
             </div>
           </div>
         </section>
 
-        {/* --- BOTTOM SECTION: TRACE INSPECTOR & DIFF VIEWER --- */}
+        {/* --- BOTTOM SECTION: TRACE INSPECTOR & DIFF VIEWER WITH PROPER MARKDOWN --- */}
         <section className="bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden">
           {/* Header Controls for Traces */}
           <div className="p-4 border-b border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -995,7 +1237,7 @@ export default function CanaryDashboard() {
                         <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                         <div>
                           <span className="font-semibold">Drift Warning Detected: </span>
-                          <span>{selectedTrace.drift_reason || 'Semantic divergence below safe threshold.'}</span>
+                          <MarkdownRenderer content={selectedTrace.drift_reason || 'Semantic divergence below safe threshold.'} />
                         </div>
                       </div>
                     )}
@@ -1007,11 +1249,11 @@ export default function CanaryDashboard() {
                         <span>{selectedTrace.prompt_tokens} tokens</span>
                       </div>
                       <div className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-lg text-xs font-mono text-zinc-300 leading-relaxed">
-                        {selectedTrace.prompt_preview || 'No prompt preview'}
+                        <MarkdownRenderer content={selectedTrace.prompt_preview || 'No prompt preview'} />
                       </div>
                     </div>
 
-                    {/* Side-by-Side Model Outputs */}
+                    {/* Side-by-Side Model Outputs with Rendered Markdown */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Primary Output */}
                       <div className="bg-zinc-900/40 border border-zinc-800 rounded-lg p-3.5 flex flex-col justify-between">
@@ -1020,8 +1262,10 @@ export default function CanaryDashboard() {
                             <span className="text-zinc-300 font-semibold">{selectedTrace.primary_model}</span>
                             <span className="text-zinc-500">{selectedTrace.primary_latency_ms}ms</span>
                           </div>
-                          <div className="text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed">
-                            {selectedTrace.primary_response_text || (
+                          <div className="text-xs text-zinc-300 leading-relaxed">
+                            {selectedTrace.primary_response_text ? (
+                              <MarkdownRenderer content={selectedTrace.primary_response_text} />
+                            ) : (
                               <span className="italic text-zinc-500">
                                 Tool invocation executed (no text output)
                               </span>
@@ -1046,8 +1290,10 @@ export default function CanaryDashboard() {
                                 : ''}
                             </span>
                           </div>
-                          <div className="text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed">
-                            {selectedTrace.shadow_response_text || (
+                          <div className="text-xs text-zinc-300 leading-relaxed">
+                            {selectedTrace.shadow_response_text ? (
+                              <MarkdownRenderer content={selectedTrace.shadow_response_text} />
+                            ) : (
                               <span className="italic text-zinc-500">
                                 Tool invocation executed (no text output)
                               </span>
